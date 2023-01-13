@@ -19,12 +19,10 @@ More compare:
     ase/utils/structure_comparator.py
 """
 
-
 from collections import Iterable
 from typing import Dict
 
 import numpy as np
-
 from ase.db.row import AtomsRow
 
 
@@ -112,15 +110,16 @@ class HashAtomsRow(AtomsRow):
             return (self.natoms == ar2.natoms and
                     (poa == pob).all() and (self.numbers == ar2.numbers).all())
 
+
 def check_name_tup(name_pair):
     assert isinstance(name_pair, Iterable)
     for i in name_pair:
         assert len(i) == 2
         for j in i:
-            assert isinstance(j, str) and j not in ["data","_data","key_value_pairs","_keys"]
+            assert isinstance(j, str) and j not in ["data", "_data", "key_value_pairs", "_keys"]
 
 
-def atoms_row_rename(atomsrow:AtomsRow,name_pair=(("old_name1","new_name1"),),check=True):
+def atoms_row_rename(atomsrow: AtomsRow, name_pair=(("old_name1", "new_name1"),), check=True):
     """Rename the name in data or key_value_pairs of row."""
     if check:
         check_name_tup(name_pair)
@@ -132,17 +131,17 @@ def atoms_row_rename(atomsrow:AtomsRow,name_pair=(("old_name1","new_name1"),),ch
 
     for o, n in name_pair:
         if o in kvp:
-            kvp[n]=kvp[o]
+            kvp[n] = kvp[o]
             del kvp[o]
 
         elif o in data:
-            data[n]=data[o]
+            data[n] = data[o]
             del data[o]
         olds.append(o)
 
-    [delattr(atomsrow, i) for i in olds if hasattr(atomsrow,i) ]
-    atomsrow._keys=list(kvp.keys())
+    [delattr(atomsrow, i) for i in olds if hasattr(atomsrow, i)]
+    atomsrow._keys = list(kvp.keys())
     atomsrow.__dict__.update(kvp)
-    atomsrow._data={}
+    atomsrow._data = {}
     atomsrow._data.update(data)
     return atomsrow

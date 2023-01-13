@@ -1,4 +1,3 @@
-
 import os
 import shutil
 from pathlib import PurePath
@@ -7,6 +6,7 @@ from typing import Union, Tuple, List
 from ase.db import connect
 from ase.db.core import Database
 from ase.db.row import AtomsRow
+
 from .ext_row import check_name_tup, atoms_row_rename
 
 
