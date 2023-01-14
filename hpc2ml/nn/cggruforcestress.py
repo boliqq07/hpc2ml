@@ -256,7 +256,7 @@ class CGGRUForceStress(torch.nn.Module):
             self.try_add_edge_msg = True
 
         if self.get_stress:
-            self.stress_layer = Stress(input_dim=3)
+            self.stress_layer = Stress(input_dim=dim)
 
         energy_ref = torch.from_numpy(atomic_energy).view(-1, 1).float()
         self.register_buffer('energy_ref', energy_ref)
@@ -293,16 +293,18 @@ class CGGRUForceStress(torch.nn.Module):
             out, h = self.gru(m.unsqueeze(0), h)
             out = out.squeeze(0)
 
-        if self.readout == "set2set":
-            energy = self.set2set(out, data.batch)
-        else:
-            energy = scatter(out, data.batch, dim=0, reduce=self.readout)
-
         if self.atom_ref is not None:
-            out = out + self.atom_ref(data.z.view(-1))
+            out1 = out + self.atom_ref(data.z.view(-1))
+        else:
+            out1 = out
 
         if self.energy_ref is not None:
-            out = out + self.energy_ref[data.z.view(-1)]
+            out1 = out1 + self.energy_ref[data.z.view(-1)]
+
+        if self.readout == "set2set":
+            energy = self.set2set(out1, data.batch)
+        else:
+            energy = scatter(out1, data.batch, dim=0, reduce=self.readout)
 
         energy = F.leaky_relu(self.lin1(energy))
         energy = self.lin2(energy)
@@ -321,7 +323,7 @@ class CGGRUForceStress(torch.nn.Module):
                 forces = self.force_layer(out)
 
             if self.get_stress:
-                stress = self.stress_layer(forces, data)
+                stress = self.stress_layer(out, data)
 
         if self.get_force:
             if self.get_stress:

@@ -16,7 +16,8 @@ class Force(nn.Module):
         elif self.decoder_type == "mlp":
             self.decoder = nn.Sequential(
                 nn.Linear(self.output_dim, self.output_dim),
-                nn.BatchNorm1d(self.output_dim),
+                self.act,
+                nn.Linear(self.output_dim, self.output_dim),
                 self.act,
                 nn.Linear(self.output_dim, 3),
             )

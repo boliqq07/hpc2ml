@@ -965,13 +965,24 @@ class PAddStress(StructureToData):
     """
     Add stress."""
 
-    @staticmethod
-    def _convert(data: Structure, **kwargs) -> Data:
+    def __init__(self, *args, stress_max: float = 15.0,
+                 stress_min: float = -15.0,
+                 **kwargs):
+
+        super(PAddStress, self).__init__(*args, **kwargs)
+
+        self.stress_max = stress_max
+        self.stress_min = stress_min
+
+    def _convert(self, data: Structure, **kwargs) -> Data:
         assert "stress" in kwargs
         stress = np.array(kwargs["stress"])
         if stress.shape == (3, 3):
             stress = full_3x3_to_voigt_6_stress(stress)
+        if np.max(stress) > self.stress_max or np.min(stress)<self.stress_min:
+            raise ValueError("Bad structure with large stress out of range.")
         stress = torch.from_numpy(stress.reshape(1, -1)).float()
+
         return Data(stress=stress)
 
 
