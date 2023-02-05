@@ -1,4 +1,13 @@
-# cohesive energy (Brewer)
+"""
+Properties:
+    cohesive energy (Brewer)
+
+Examples:
+    >>> from hpc2ml.data.embedding.cohesive_energy import atomic_energy
+    >>> from hpc2ml.data.structuretodata import PAddXArray
+    >>> paa = PAddXArray(array=atomic_energy)
+
+"""
 import numpy as np
 
 atomic_energy = np.array([

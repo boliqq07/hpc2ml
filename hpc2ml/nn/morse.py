@@ -12,6 +12,7 @@ from torch.nn import ReLU
 
 class Morse(torch.nn.Module):
     """Morse potential"""
+
     def __init__(self):
         super().__init__()
         from ase.data import covalent_radii
@@ -36,11 +37,10 @@ class Morse(torch.nn.Module):
 
     def _forward_r(self, cen, nei, r):
 
-
         r0 = (self.radii[nei] + self.radii[cen]).view(-1, 1)
         param_in = torch.vstack((nei + cen, nei * cen)).T.float()
         param_out = self.lin1(param_in)
-        # param_out = torch.abs(param_out)
+        # param_out = torch.abs(param_out) # not use
 
         D, k, c, alpha, n_3, n1, n2, _ = torch.chunk(param_out, chunks=8, dim=1)
 
@@ -54,18 +54,19 @@ class Morse(torch.nn.Module):
 
         alpha = torch.minimum(alpha, torch.full_like(alpha, 20))
         alpha = torch.maximum(alpha, torch.full_like(alpha, -20))
+        k = torch.minimum(k, torch.full_like(alpha, 20))
 
         MV_COEF = 1.0
-        LINEBASE_COEF = 2
+        LINEBASE_COEF = 2.0
 
         alpha = (1 + 0.01 * alpha) * MV_COEF
-        k = (0.7 + 0.1 * k) * LINEBASE_COEF
+        k = (0.8 + 0.01 * k) * LINEBASE_COEF
 
         core = -k * (r - alpha * r0)
 
-        pot = D * torch.pow(1 - torch.exp(core), 2) + n_3 * r * (1 / 3) + n2 * r ** 2
+        pot = D * torch.pow(1 - torch.exp(core), 2) + n_3 * r ** (1 / 3) + n2 * r ** 2
 
-        pot = torch.minimum(pot, torch.full_like(pot, 3))
+        pot = torch.minimum(pot, torch.full_like(pot, 10))
 
         pot = pot - n1 * r + c
 
@@ -81,7 +82,7 @@ class Morse(torch.nn.Module):
 
         beta = r2 / r1
 
-        pot= beta*pot
+        pot = beta * pot
 
         return pot
 

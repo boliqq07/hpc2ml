@@ -8,8 +8,6 @@ import math
 import torch
 import torch.nn as nn
 
-from .activations import Act
-
 
 class Sine(nn.Module):
     def __init__(self, w0: float = 30.0):
@@ -122,7 +120,6 @@ class FourierSmearing(nn.Module):
             return torch.cos(x)
         else:
             return torch.sin(x)
-
 
 # class Basis(nn.Module):
 #     def __init__(

@@ -89,9 +89,9 @@ class TemplateCrystalModel(Module):
             num_interactions: (int) conv number.
             cutoff: (float) cutoff for calculate neighbor bond.
             readout: (str) Merge node method. such as "add","mean","max","mean".
-            mean: (float) mean for y.
-            std: (float) std for y.
-            norm:(bool) False or True norm for y.
+            mean: (float) mean for y/energy.
+            std: (float) std for y/energy.
+            norm:(bool) False or True norm for y/energy.
             add_node: (torch.tensor shape (120,1)) properties for atom. such as target y is volumes of compound,
                 add_node could be the atom volumes of all atom (H,H,He,Li,...). And you could copy the first term to
                 make sure the `H` index start form 1.

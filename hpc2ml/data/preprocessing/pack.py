@@ -1,3 +1,10 @@
+"""
+Examples:
+    >>> data = pd.read_pickle("st_and_energy.pkl_pd")
+    >>> ks, (structure, energy), k2s = unpack(data)
+    >>> data1 = pack(ks, (structure, energy), k2s)
+"""
+
 from typing import List, Sequence, Union
 
 import numpy as np
@@ -10,10 +17,7 @@ def pack(ks: Union[Sequence, np.ndarray], vs: Union[Sequence, np.ndarray],
          k2s: Union[Sequence, np.ndarray] = None, trans: bool = True):
     """Pack the array to dict."""
 
-    # res4 = pd.DataFrame.from_dict({i: j for i, j in zip(ks, vs)})
-
-    vs = [np.array(vsi) for vsi in vs]
-    res4 = pd.DataFrame(data=np.vstack(vs).T, columns=ks)
+    res4 = pd.DataFrame.from_dict({i: j for i, j in zip(ks, vs)})
 
     if k2s is None:
         pass
@@ -46,7 +50,7 @@ def unpack2dict(data: dict, trans=True):
     return data_new, k2s
 
 
-def couple_org(structures: List[Structure], energies:Sequence=None, **kwargs):
+def couple_org(structures: List[Structure], energies: Sequence = None, **kwargs):
     """Group (*,*H) structure by formula."""
     if energies is None:
         energies = [np.nan] * len(structures)

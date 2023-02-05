@@ -1,8 +1,6 @@
 """
 From ocpmodel: https://github.com/Open-Catalyst-Project/ocp
 
-CGCNN-like embeddings using continuous values instead of original k-hot.
-
 Properties:
     Group number
     Period number
@@ -14,10 +12,14 @@ Properties:
     Block
     Atomic Volume
 
-NaN stored for unavaialable parameters.
+Examples:
+    >>> from hpc2ml.data.embedding.continuous_embeddings import continuous
+    >>> from hpc2ml.data.structuretodata import PAddXEmbeddingDict
+    >>> paa = PAddXEmbeddingDict(dct=continuous)
+
 """
 
-CONTINUOUS_EMBEDDINGS = {
+continuous = {
     0: [
         float("NaN"),
         float("NaN"),

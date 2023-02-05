@@ -17,7 +17,9 @@ Each Graph data (for each structure):
 
 ``pos``: Node position matrix. np.ndarray, with shape [num_nodes, num_dimensions]
 
-``y``: target. np.ndarray, shape (1, num_target) , default shape (1,)
+``energy``: target. np.ndarray, shape (1, num_target) , default shape (1,)
+
+#  ``y``: target 1. (alias edge_energy) np.ndarray, shape (1, num_target) , default shape (1,)
 
 ``z``: atom numbers (alias atomic_numbers). np.ndarray, with shape [num_nodes,]
 
@@ -31,15 +33,15 @@ Each Graph data (for each structure):
 
 ``edge_weight``: Edge feature matrix. np.ndarray,  with shape [num_edges,]
 
-``edge_attr``: Edge feature matrix. np.ndarray,  with shape [num_edges, nfeat_edge]
-
 # ``distance``: (alias edge_weight) distance matrix. np.ndarray,  with shape [num_edges, 3]
+
+``edge_attr``: Edge feature matrix. np.ndarray,  with shape [num_edges, nfeat_edge]
 
 # ``distance_vec``: (alias state_attr) distance 3D matrix (x,y,z). np.ndarray,  with shape [num_edges, 3]
 
 ``cell_offsets``: offset matrix. np.ndarray, with shape [3, 3]
 
-``force``: force matrix per atom. np.ndarray,  with shape [num_nodes, 3]
+``forces``: forces matrix per atom. np.ndarray,  with shape [num_nodes, 3]
 
 ``stress``: stress matrix per atom. np.ndarray,  with shape [6,]
 
@@ -51,21 +53,22 @@ Each Graph data (for each structure):
 
 """
 import os
+import traceback
 import warnings
 from shutil import rmtree
-from typing import List, Iterable, Union, Tuple, Sequence
+from typing import List, Iterable, Union, Tuple, Sequence, Optional, Dict
 
 import ase.data as ase_data
 import numpy as np
 import pandas as pd
 import torch
-from mgetool.tool import parallelize, batch_parallelize
 from pymatgen.core import Structure, Element
 from pymatgen.optimization.neighbors import find_points_in_spheres
 from torch_geometric.data import Data
 
 from hpc2ml.data.io.main import sparse_source_data
 from hpc2ml.data.preprocessing.pack import unpack, pack
+from mgetool.tool import parallelize, batch_parallelize
 
 
 def data_merge(data_sub: List[Data], merge_key=None):
@@ -121,9 +124,9 @@ class StructureToData:
 
         Examples:
             >>> cvt = StructureToData()
-            >>> res = cvt.transform(structure=structure_list,y = energy_list)
-            >>> res = cvt.transform_and_save(structure=structure_list,y = energy_list)
-            >>> resi = cvt.convert(structure=one_structure,y=0.3)
+            >>> res = cvt.transform(structure=structure_list,energy = energy_list)
+            >>> res = cvt.transform_and_save(structure=structure_list,energy = energy_list)
+            >>> resi = cvt.convert(structure=one_structure,energy=0.3)
 
             For batch of data, there could be some error data, self.support_ marks the correct/error data.
             >>> support_ = cvt.support_
@@ -134,7 +137,7 @@ class StructureToData:
 
         Examples:
             >>> cvt = PAddFracCoords(contain_base=True)
-            >>> res = cvt.transform(structure=structure_list,y = energy_list)
+            >>> res = cvt.transform(structure=structure_list,energy = energy_list)
 
 
         1.3 Use with more subclass. Where The PAddStress add stress property form ext input,
@@ -142,7 +145,7 @@ class StructureToData:
 
         Examples:
             >>> cvt = StructureToData(sub_converters=[PAddStress(),PAddFracCoords(),PAddPBCEdgeDistance()])
-            >>> res = cvt.transform(structure=structure_list,y = energy_list, stress = stress_list)
+            >>> res = cvt.transform(structure=structure_list,energy = energy_list, stress = stress_list)
 
         Notes:
             It doesn't accept 3 or more deep!!!
@@ -155,8 +158,8 @@ class StructureToData:
         Examples:
             >>> cvt = StructureToData()+PAddFracCoords()+PAddPBCEdgeSole()+PAddForce()
             >>> cvt2 = PAddFracCoords(contain_base=True)+PAddFracCoords()
-            >>> res = cvt.transform(structure=structure_list,y = energy_list, stress = stress_list, force=force_list)
-            >>> res2 = cvt.transform(structure=structure_list,y = energy_list, stress = stress_list, force=force_list)
+            >>> res = cvt.transform(structure=structure_list,energy = energy_list, stress = stress_list, forces=force_list)
+            >>> res2 = cvt.transform(structure=structure_list,energy = energy_list, stress = stress_list, forces=force_list)
 
         Notes: The 1.3 and 1.4 are not compacted, in other wards, we don't accept 3 or more deep!!!
             such as: PAddForce()+PAddForce(PAddPBCEdgeSole()) is lost PAddPBCEdgeSole().
@@ -202,9 +205,11 @@ class StructureToData:
 
 
     """
-    def __init__(self, sub_converters: Union["StructureToData", List["StructureToData"]] = None, merge_key=None, n_jobs: int = 1,
+
+    def __init__(self, sub_converters: Union["StructureToData", List["StructureToData"]] = None, merge_key=None,
+                 n_jobs: int = 1,
                  batch_calculate: bool = True, just_predefined=True, contain_base=False,
-                 batch_size: int = 1000):
+                 batch_size: int = 1000, tq=True,):
         """
 
         Args:
@@ -224,15 +229,16 @@ class StructureToData:
         self.source_support = None
         self.just_predefined = just_predefined
         self.contain_base = contain_base
+        self.tq = tq
 
         if self.__class__.__name__ == "StructureToData":
             assert contain_base == False, "StructureToData is the base and can't contain_base."
 
-        if isinstance(sub_converters,StructureToData):
-            sub_converters = [sub_converters,]
+        if isinstance(sub_converters, StructureToData):
+            sub_converters = [sub_converters, ]
 
         if contain_base and sub_converters is not None:
-            self.sub_converters = [StructureToData()]+sub_converters
+            self.sub_converters = [StructureToData()] + sub_converters
         else:
             if contain_base and sub_converters is None:
                 self.sub_converters = [StructureToData()]
@@ -243,9 +249,14 @@ class StructureToData:
             for i in self.sub_converters:
                 assert i.__class__.__name__ != self.__class__.__name__, f"Not accept itself as sub_converter."
                 if i.sub_converters is not None:
-                    warnings.warn(f"We don't accept 3 or more deep!!!, {i.sub_converters} is lost, change you code!!!",UserWarning)
+                    warnings.warn(f"We don't accept 3 or more deep!!!, {i.sub_converters} is lost, change you code!!!",
+                                  UserWarning)
                 i.sub_converters = None  # remove deeper converter.
                 i.n_jobs = 1
+
+    def __str__(self):
+        sname = str([i.__class__.__name__ for i in self.sub_converters])
+        return f"{self.__class__.__name__}({sname})"
 
     def __add__(self, *args):
         """Return one joined converter named CatStructureToData, and args are set into sub_converters.
@@ -263,7 +274,7 @@ class StructureToData:
 
         _convert = lambda *args, **kwargs: None
 
-        CatStructureToData = type("CatStructureToData", (StructureToData,), {"_convert":_convert})
+        CatStructureToData = type("CatStructureToData", (StructureToData,), {"_convert": _convert})
 
         n_jobs = max([i.n_jobs for i in args])
         just_predefined = any([i.just_predefined for i in args])
@@ -275,7 +286,7 @@ class StructureToData:
 
         merge_key = []
         [merge_key.extend(i.merge_key) for i in args if i.merge_key is not None]
-        merge_key = merge_key if len(merge_key)>0 else None
+        merge_key = merge_key if len(merge_key) > 0 else None
 
         args2 = []
         for i in args:
@@ -288,7 +299,8 @@ class StructureToData:
 
         for i in args2:
             if i.sub_converters is not None:
-                warnings.warn(f"We don't accept 3 or more deep!!!, {i.sub_converters} is lost, change you code!!!",UserWarning)
+                warnings.warn(f"We don't accept 3 or more deep!!!, {i.sub_converters} is lost, change you code!!!",
+                              UserWarning)
             i.sub_converters = None  # remove deeper converter.
             i.n_jobs = 1
             i.contain_base = False
@@ -337,9 +349,9 @@ class StructureToData:
         self.data_dict = pd.read_pickle(path_file)
         return self.data_dict
 
-    def convert_data_dict(self, index=None, msg_name = None):
+    def convert_data_dict(self, index=None, msg_name=None):
         """Convert one data in data_dict.
-        default msg_name = ("structure", "energy", "state_attr", "force","stress" , ...)"""
+        default msg_name = ("structure", "energy", "state_attr", "forces","stress" , ...)"""
 
         if index is None:
             assert len(self.data_dict) == 1, "convert_data_dict is just used for 1 samples when index=None." \
@@ -347,8 +359,8 @@ class StructureToData:
 
         dati = self.data_dict[index]
 
-        if "energy" in dati:
-            dati["y"] = dati.pop("energy")
+        # if "y" in dati:
+        #     dati["energy"] = dati.pop("y")
 
         if len(msg_name) > 0:
             new_dat = {}
@@ -359,11 +371,11 @@ class StructureToData:
             new_dat = dati
         return self.convert(**new_dat)
 
-    def transform_data_dict(self, msg_name = None):
+    def transform_data_dict(self, msg_name=None):
         """Transform all data_dict.
-        default msg_name = ("structure", "energy", "state_attr", "force","stress" , ...)"""
+        default msg_name = ("structure", "energy", "state_attr", "forces","stress" , ...)"""
         if msg_name is None:
-            msg_name = ("structure", "energy", "y", "state_attr", "force", "stress")
+            msg_name = ("structure", "energy", "y", "state_attr", "forces", "stress")
 
         ks, vs, k2s = self.upack()
 
@@ -372,11 +384,11 @@ class StructureToData:
         if len(msg_name) > 0:
             for k, v in zip(ks, vs):
                 if k in msg_name:
-                    k = "y" if k == "energy" else k
+                    # k = "energy" if k == "y" else k
                     kv.update({k: v})
         else:
             for k, v in zip(ks, vs):
-                k = "y" if k == "energy" else k
+                # k = "energy" if k == "y" else k
                 kv.update({k: v})
 
         if len(kv) == 0:
@@ -384,13 +396,13 @@ class StructureToData:
         res = self.transform(**kv, note=k2s)
         return res
 
-    def convert(self, structure: Structure, y=None, state_attr=None, **kwargs) -> Data:
+    def convert(self, structure: Structure, energy=None, state_attr=None, **kwargs) -> Data:
         """
         Convert single data.
 
         Args:
             structure: (Structure)
-            y: (float,int)
+            energy: (float,int)
             state_attr: (float,int,np.ndarray)
             **kwargs: kwargs.
 
@@ -399,17 +411,18 @@ class StructureToData:
 
         """
         if self.sub_converters is None:
-            data = self._convert(structure, y=y, state_attr=state_attr, **kwargs)
+            data = self._convert(structure, energy=energy, state_attr=state_attr, **kwargs)
         else:
-            data_sub = [ci.convert(structure, y=y, state_attr=state_attr, **kwargs) for ci in self.sub_converters]
+            data_sub = [ci.convert(structure, energy=energy, state_attr=state_attr, **kwargs) for ci in
+                        self.sub_converters]
 
-            main_data = self._convert(structure, y=y, state_attr=state_attr, **kwargs)
+            main_data = self._convert(structure, energy=energy, state_attr=state_attr, **kwargs)
 
             data_sub.append(main_data)
 
             data_sub = [i for i in data_sub if i is not None]
 
-            if len(data_sub)==0:
+            if len(data_sub) == 0:
                 data = None
             else:
                 data = data_merge(data_sub, self.merge_key)
@@ -422,7 +435,7 @@ class StructureToData:
         if "note" in kwargs:
             note = kwargs.pop("note")
         else:
-            note =""
+            note = ""
         try:
             con = self.convert(*args, **kwargs)
 
@@ -436,9 +449,9 @@ class StructureToData:
             return con
 
         except BaseException as e:
-            warnings.warn("Check the self.support_ to get the index of dropped error data.", UserWarning)
-            print(e.__str__())
             print(f"Bad conversion for:{args[0].formula},note:{note}")
+            traceback.print_exc()
+            warnings.warn("Check the self.support_ to get the index of dropped error data.", UserWarning)
             return None, False
 
     def upack(self, data_dict=None):
@@ -465,7 +478,7 @@ class StructureToData:
             structure:(list) Preprocessing of samples need to transform to Graph.
             state_attr: (list)
                 preprocessing of samples need to add to Graph.
-            y: (list)
+            energy: (list)
                 Target to train against (the same size with structure)
 
             **kwargs:
@@ -494,19 +507,19 @@ class StructureToData:
             kw = [{k: v[i] for k, v in kwargs.items()} for i in range(le)]
         except IndexError as e:
             print(e)
-            raise IndexError("Make sure the other parameters such as y and state_attr"
+            raise IndexError("Make sure the other parameters such as energy and state_attr"
                              " are with same number (length) of structure.")
 
         iterables = zip(structure, kw)
 
         if not self.batch_calculate:
-            res = parallelize(self.n_jobs, self._wrapper, iterables, tq=True, respective=True,
+            res = parallelize(self.n_jobs, self._wrapper, iterables, tq=self.tq, respective=True,
                               respective_kwargs=True, desc="Transforming", mode="j", )
 
         else:
             res = batch_parallelize(self.n_jobs, self._wrapper, iterables, respective=True,
                                     respective_kwargs=True, mode="j",
-                                    tq=True, batch_size=self.batch_size, desc="Transforming")
+                                    tq=self.tq, batch_size=self.batch_size, desc="Transforming")
 
         ret, self.support_ = zip(*res)
 
@@ -541,7 +554,7 @@ class StructureToData:
         """Save."""
         torch.save(obj, os.path.join(root_dir, "raw", '{}.pt'.format(name)))
 
-    def transform_and_save(self, structure:list, y=None, state_attr=None, root_dir=".",
+    def transform_and_save(self, structure: list, energy=None, state_attr=None, root_dir=".",
                            file_names="composition_name", save_mode="o", **kwargs):
         r"""Save the data to 'root_dir/raw' if save_mode="i", else 'root_dir', compact with InMemoryDatasetGeo"""
         raw_path = os.path.join(root_dir, "raw")
@@ -549,7 +562,7 @@ class StructureToData:
             rmtree(raw_path)
         os.makedirs(raw_path)
 
-        result = self.transform(structure, y=y, state_attr=state_attr, **kwargs)
+        result = self.transform(structure, energy=energy, state_attr=state_attr, **kwargs)
 
         print("Save raw files to {}.".format(raw_path))
         if save_mode in ["i", "r", "respective"]:
@@ -560,7 +573,7 @@ class StructureToData:
         print("Done.")
         return result
 
-    def transform_data_dict_and_save(self, store_root_dir=".", msg_name = None):
+    def transform_data_dict_and_save(self, store_root_dir=".", msg_name=None):
         r"""Save the data to 'root_dir/raw' if save_mode="i", else 'root_dir', compact with InMemoryDatasetGeo"""
         raw_path = os.path.join(store_root_dir, "raw")
         if os.path.isdir(raw_path):
@@ -576,9 +589,10 @@ class StructureToData:
         print("Done.")
         return result
 
-    def _convert(self, data: Structure, y=None, state_attr=None, **kwargs) -> Data:
+    def _convert(self, data: Structure, energy=None, state_attr=None, **kwargs) -> Data:
         z = torch.tensor(list(data.atomic_numbers))
         cell = np.copy(data.lattice.matrix)
+        pbc = torch.tensor(data.pbc).view(3, 1)
         pos = np.copy(data.cart_coords)
         cell = torch.unsqueeze(torch.from_numpy(cell).float(), 0)
         pos = torch.from_numpy(pos).float()
@@ -586,20 +600,22 @@ class StructureToData:
         if state_attr is not None:
             state_attr = torch.from_numpy(np.array(state_attr)).float()
             state_attr = state_attr.reshape(1, 1) if len(state_attr.shape) == 0 else state_attr
-        if y is not None:
-            y = torch.tensor(y).float()
+        if energy is not None:
+            energy = torch.tensor(energy).float()
 
         if not self.just_predefined:
             for key, value in kwargs.items():
                 try:
-                    value = torch.from_numpy(np.array(value)).float()
+                    value = torch.from_numpy(np.array(value))
                     value = value.reshape(1, 1) if len(value.shape) == 0 else value
                     kwargs[key] = value
                 except ValueError:
                     pass
-            return Data(y=y, pos=pos, z=z, state_attr=state_attr, cell=cell, natoms=natoms, **kwargs)
+            return Data(energy=energy, pos=pos, z=z, state_attr=state_attr, cell=cell, natoms=natoms,
+                        pbc=pbc, **kwargs)
         else:
-            return Data(y=y, pos=pos, z=z, state_attr=state_attr, cell=cell, natoms=natoms)
+            return Data(energy=energy, pos=pos, z=z,
+                        state_attr=state_attr, cell=cell, natoms=natoms, pbc=pbc, )
 
 
 class PAddSAPymatgen(StructureToData):
@@ -681,16 +697,17 @@ class PAddXASE(StructureToData):
 
 class PAddXArray(StructureToData):
     """
-    Add x by np.array (2D).
-    The array is insert in 0 position automatically in code.
+    Add x by np.ndarray (2D).
+    The array is insert in 0 position automatically in code. (padding_0=True)
 
     """
 
-    def __init__(self, array: np.ndarray, *args, **kwargs):
+    def __init__(self, array: np.ndarray, *args, padding_0=True, **kwargs):
         super(PAddXArray, self).__init__(*args, **kwargs)
         if array.ndim == 1:
             array = array.reshape(-1, 1)
-        array = np.concatenate((array[0, :].reshape(1, -1), array), axis=0)  # add one line in 0.
+        if padding_0:
+            array = np.concatenate((array[0, :].reshape(1, -1), array), axis=0)  # add one line in 0.
         self.arrays = torch.from_numpy(array).float()
 
     def _convert(self, data: Structure, **kwargs) -> Data:
@@ -700,16 +717,16 @@ class PAddXArray(StructureToData):
 
 class PAddForce(StructureToData):
     """
-    Add force by np.array (2D).
+    Add forces by np.array (2D).
     """
 
     def __init__(self, *args, **kwargs):
         super(PAddForce, self).__init__(*args, **kwargs)
 
     def _convert(self, data: Structure, **kwargs) -> Data:
-        assert "force" in kwargs
-        force = torch.from_numpy(kwargs["force"]).float()
-        return Data(force=force)
+        assert "forces" in kwargs
+        forces = torch.from_numpy(kwargs["forces"]).float()
+        return Data(forces=forces)
 
 
 class PAddXEmbeddingDict(StructureToData):
@@ -721,7 +738,7 @@ class PAddXEmbeddingDict(StructureToData):
         super(PAddXEmbeddingDict, self).__init__(*args, **kwargs)
 
         if dct is None:
-            from hpc2ml.data.embedding.continuous_embeddings import CONTINUOUS_EMBEDDINGS as dct
+            from hpc2ml.data.embedding.continuous_embeddings import continuous as dct
         self.dct = dct
 
     def _convert(self, data: Structure, **kwargs) -> Data:
@@ -966,22 +983,29 @@ class PAddStress(StructureToData):
     Add stress."""
 
     def __init__(self, *args, stress_max: float = 15.0,
-                 stress_min: float = -15.0,
+                 stress_min: float = -15.0, voigt_6=False,
                  **kwargs):
 
         super(PAddStress, self).__init__(*args, **kwargs)
 
         self.stress_max = stress_max
         self.stress_min = stress_min
+        self.voigt_6 = voigt_6
 
     def _convert(self, data: Structure, **kwargs) -> Data:
         assert "stress" in kwargs
         stress = np.array(kwargs["stress"])
-        if stress.shape == (3, 3):
-            stress = full_3x3_to_voigt_6_stress(stress)
-        if np.max(stress) > self.stress_max or np.min(stress)<self.stress_min:
+        if self.voigt_6:
+            if stress.shape == (3, 3):
+                stress = full_3x3_to_voigt_6_stress(stress)
+            stress = torch.from_numpy(stress.reshape(1, -1)).float()
+        else:
+            if stress.shape == (6,):
+                stress = voigt_6_to_full_3x3_stress(stress)
+            stress = torch.unsqueeze(torch.from_numpy(stress), dim=0)
+
+        if torch.max(stress) > self.stress_max or torch.min(stress) < self.stress_min:
             raise ValueError("Bad structure with large stress out of range.")
-        stress = torch.from_numpy(stress.reshape(1, -1)).float()
 
         return Data(stress=stress)
 
@@ -994,3 +1018,84 @@ class PAddFracCoords(StructureToData):
     def _convert(data: Structure, **kwargs) -> Data:
         frac_pos = torch.from_numpy(data.frac_coords)
         return Data(frac_pos=frac_pos)
+
+
+class PAtomNumToType(StructureToData):
+    num_types: int
+    chemical_symbol_to_type: Optional[Dict[str, int]]
+    type_names: List[str]
+    _min_Z: int
+
+    def __init__(self, *args, type_names: Optional[List[str]] = None,
+                 chemical_symbol_to_type: Optional[Dict[str, int]] = None,
+                 chemical_symbols: Optional[List[str]] = None, **kwargs):
+        super(PAtomNumToType, self).__init__(*args, **kwargs)
+
+        if chemical_symbol_to_type is None:
+            if chemical_symbols is None:
+                chemical_symbols = ase_data.chemical_symbols
+            atomic_nums = [ase_data.atomic_numbers[sym] for sym in chemical_symbols]
+            chemical_symbols = [e[1] for e in sorted(zip(atomic_nums, chemical_symbols))]
+            chemical_symbol_to_type = {k: i for i, k in enumerate(chemical_symbols)}
+            del chemical_symbols
+
+        # Build from chem->type mapping, if provided
+        self.chemical_symbol_to_type = chemical_symbol_to_type
+
+        # Validate
+        for sym, type in self.chemical_symbol_to_type.items():
+            assert sym in ase_data.atomic_numbers, f"Invalid chemical symbol {sym}"
+            assert 0 <= type, f"Invalid type number {type}"
+        assert set(self.chemical_symbol_to_type.values()) == set(
+            range(len(self.chemical_symbol_to_type)))
+        if type_names is None:
+            # Make type_names
+            type_names = [None] * len(self.chemical_symbol_to_type)
+            for sym, type in self.chemical_symbol_to_type.items():
+                type_names[type] = sym
+        else:
+            # Make sure they agree on types
+            # We already checked that chem->type is contiguous,
+            # so enough to check length since type_names is a list
+            assert len(type_names) == len(self.chemical_symbol_to_type)
+        # Make mapper array
+        valid_atomic_numbers = [
+            ase_data.atomic_numbers[sym] for sym in self.chemical_symbol_to_type]
+        self._min_Z = min(valid_atomic_numbers)
+        self._max_Z = max(valid_atomic_numbers)
+        Z_to_index = torch.full(
+            size=(1 + self._max_Z - self._min_Z,), fill_value=-1, dtype=torch.long)
+        for sym, type in self.chemical_symbol_to_type.items():
+            Z_to_index[ase_data.atomic_numbers[sym] - self._min_Z] = type
+        self._Z_to_index = Z_to_index
+        self._index_to_Z = torch.zeros(
+            size=(len(self.chemical_symbol_to_type),), dtype=torch.long)
+        for sym, type_idx in self.chemical_symbol_to_type.items():
+            self._index_to_Z[type_idx] = ase_data.atomic_numbers[sym]
+        self._valid_set = set(valid_atomic_numbers)
+
+        # check
+        if type_names is None:
+            raise ValueError(
+                "None of chemical_symbols, chemical_symbol_to_type, nor type_names was provided; "
+                "exactly one is required")
+        # validate type names
+        assert all(n.isalnum() for n in type_names), "Type names must contain only alphanumeric characters"
+        # Set to however many maps specified -- we already checked contiguous
+        self.num_types = len(type_names)
+        # Check type_names
+        self.type_names = type_names
+
+    def _convert(self, data: Structure, **kwargs) -> Data:
+        atomic_numbers = torch.tensor(list(data.atomic_numbers))
+        zt = self._transform(atomic_numbers)
+        return Data(zt=zt)
+
+    def _transform(self, atomic_numbers: torch.Tensor) -> torch.Tensor:
+        if atomic_numbers.min() < self._min_Z or atomic_numbers.max() > self._max_Z:
+            bad_set = set(torch.unique(atomic_numbers).cpu().tolist()) - self._valid_set
+            raise ValueError(
+                f"Data included atomic numbers {bad_set} that are not part of the atomic number -> type mapping!")
+
+        return self._Z_to_index.to(device=atomic_numbers.device)[
+            atomic_numbers - self._min_Z]

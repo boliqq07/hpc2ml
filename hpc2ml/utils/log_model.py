@@ -66,7 +66,7 @@ def print_log_dataset(dataset: Union[InMemoryDataset, SimpleDataset, List[Data],
 
 def print_log_dataloader(dataloader: DataLoader, print_index_of_sample=False):
     dataloader0 = copy.copy(dataloader)
-    names = ['x', 'edge_attr', 'y', 'pos', 'batch', 'ptr', 'z', 'idx', 'state_attr', 'adj_t', 'edge_weight',
+    names = ['x', 'edge_attr', 'energy', 'pos', 'batch', 'ptr', 'z', 'idx', 'state_attr', 'adj_t', 'edge_weight',
              "num_graphs"]
     for data in dataloader0:
         shapes = []

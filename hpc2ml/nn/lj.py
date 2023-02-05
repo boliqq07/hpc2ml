@@ -133,6 +133,7 @@ from torch.nn import ReLU
 
 class LJ(torch.nn.Module):
     """LJ potential"""
+
     def __init__(self, cutoff=5.0):
         super().__init__()
         from ase.data import covalent_radii
@@ -142,7 +143,7 @@ class LJ(torch.nn.Module):
             nn.Linear(6, 6, bias=True), ReLU(),
             nn.Linear(6, 6, bias=True)
         )
-        self.cutoff = cutoff #? old
+        self.cutoff = cutoff  # ? old
         self.register_buffer('radii', radii)
 
     def forward(self, cen, nei, r):
@@ -177,7 +178,7 @@ class LJ(torch.nn.Module):
 
         sigma = sigma / r
 
-        pot = 4 * epsilon * (torch.pow(sigma, 12) - torch.pow(sigma, 6)) + n_3 * r * (1 / 3) + n2 * r ** 2
+        pot = 4 * epsilon * (torch.pow(sigma, 12) - torch.pow(sigma, 6)) + n_3 * r ** (1 / 3) + n2 * r ** 2
 
         pot = torch.minimum(pot, torch.full_like(pot, 10))
         pot = pot - n1 * r + c
@@ -186,7 +187,7 @@ class LJ(torch.nn.Module):
 
     def _forward_xyz(self, cen, nei, r):
 
-        pot = self._forward_r(cen, nei, torch.sum(r**2,dim=1,keepdim=True))
+        pot = self._forward_r(cen, nei, torch.sum(r ** 2, dim=1, keepdim=True))
 
         r2 = r ** 2
 

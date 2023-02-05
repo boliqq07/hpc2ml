@@ -1,11 +1,35 @@
+"""
+Examples for ase db:
+    >>> from hpc2ml.data.structuretodata import StructureToData
+    >>> addsap = StructureToData()
+    >>> source_path = "."
+    >>> res = addsap.sparse_source_data(source_file="data.db", source_path=source_path, fmt="ase",)
+
+Examples for Vasp:
+    >>> from hpc2ml.data.structuretodata import StructureToData
+    >>> addsap = StructureToData()
+    >>> from hpc2ml.data.io.main import find_leaf_path
+    >>> source_path = find_leaf_path("./data") # get path list
+    >>> res = addsap.sparse_source_data(source_file="vasprun.xml", source_path=source_path, fmt="vasprun",)
+    >>> res2 = addsap.sparse_source_data(source_file="vasprun.xml", source_path=source_path, fmt="vasp_traj",space=5)
+
+Examples for csv:
+    >>> from hpc2ml.data.structuretodata import StructureToData
+    >>> addsap = StructureToData()
+    >>> source_path = "."
+    >>> res = addsap.sparse_source_data(source_file="tb.csv", source_path=source_path, fmt="csv",)
+
+"""
+
 import os
 from typing import Union, Sequence
 
 import path
+
 from mgetool.tool import parallelize
 
 
-def sparse_source_data(source_file: str = "vasprun.xml", source_path: Union[Sequence, str] = ".", fmt: str="vasprun",
+def sparse_source_data(source_file: str = "vasprun.xml", source_path: Union[Sequence, str] = ".", fmt: str = "vasprun",
                        n_jobs=4, **kwargs):
     """
     Sparse data by different function.
@@ -20,6 +44,9 @@ def sparse_source_data(source_file: str = "vasprun.xml", source_path: Union[Sequ
     Returns:
         data_dict:dict, data
     """
+    if fmt == "auto":
+        suffix = source_file.split(".")[-1]
+        fmt = {"xml": "vasprun", "db": "ase", "csv": "csv"}[suffix]
 
     if isinstance(source_path, str):
         source_path = [source_path, ]

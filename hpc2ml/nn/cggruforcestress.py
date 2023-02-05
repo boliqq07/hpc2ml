@@ -10,7 +10,7 @@ from torch_scatter import scatter
 from hpc2ml.data.embedding.cohesive_energy import atomic_energy
 from hpc2ml.function.support import add_edge_total
 from hpc2ml.nn.activations import Act
-from hpc2ml.nn.force import Force
+from hpc2ml.nn.forces import Forces
 from hpc2ml.nn.lj import LJ
 from hpc2ml.nn.morse import Morse
 from hpc2ml.nn.stress import Stress
@@ -27,7 +27,7 @@ class PotConv(MessagePassing):
     """
 
     def __init__(self, in_channels, out_channels, nc_edge_hidden, pot="morse", mode="xyz", batch_norm=True):
-        super().__init__(aggr='mean',flow="source_to_target")
+        super().__init__(aggr='mean', flow="source_to_target")
         if pot == "morse":
             self.potlayer = Morse()
         elif pot == "lj":
@@ -39,6 +39,8 @@ class PotConv(MessagePassing):
 
         if self.mode == "xyz":
             assert nc_edge_hidden == 3  # just for x,y,z vector.
+        else:
+            assert nc_edge_hidden == 1  # just for r vector.
 
         self.lin1 = nn.Linear(2 * in_channels + nc_edge_hidden + 1, 2 * in_channels, bias=False)
         self.lin1p = nn.Linear(2 * in_channels + 3, 2 * out_channels)  # not used perhaps
@@ -131,7 +133,7 @@ class PotConv(MessagePassing):
 
 class NNConv(MessagePassing):
     def __init__(self, in_channels, out_channels, nc_edge_hidden, cutoff=5.0, mlp=None):
-        super().__init__(aggr='mean',flow="source_to_target")
+        super().__init__(aggr='mean', flow="source_to_target")
 
         if mlp is None:
             self.mlp = nn.Sequential(nn.Linear(nc_edge_hidden, 32), ReLU(), nn.Linear(32, in_channels))
@@ -251,7 +253,7 @@ class CGGRUForceStress(torch.nn.Module):
         self.try_add_edge_msg = try_add_edge_msg
 
         if self.direct_force:
-            self.force_layer = Force(dim)
+            self.force_layer = Forces(dim)
         else:
             self.try_add_edge_msg = True
 
@@ -289,8 +291,12 @@ class CGGRUForceStress(torch.nn.Module):
         h = out.unsqueeze(0)
 
         for convi in self.conv_list:
-            m = F.leaky_relu(convi(out, data.edge_index, data.edge_weight, data.edge_attr, data.z.view(-1,1)))
-            out, h = self.gru(m.unsqueeze(0), h)
+            m = F.leaky_relu(convi(out, data.edge_index, data.edge_weight, data.edge_attr, data.z.view(-1, 1)))
+            if not self.direct_force:
+                with torch.backends.cudnn.flags(enabled=False):
+                    out, h = self.gru(m.unsqueeze(0), h)
+            else:
+                out, h = self.gru(m.unsqueeze(0), h)
             out = out.squeeze(0)
 
         if self.atom_ref is not None:
@@ -302,7 +308,13 @@ class CGGRUForceStress(torch.nn.Module):
             out1 = out1 + self.energy_ref[data.z.view(-1)]
 
         if self.readout == "set2set":
-            energy = self.set2set(out1, data.batch)
+            if not self.direct_force:
+                with torch.backends.cudnn.flags(enabled=False):
+                    energy = self.set2set(out1, data.batch)
+
+            else:
+                energy = self.set2set(out1, data.batch)
+
         else:
             energy = scatter(out1, data.batch, dim=0, reduce=self.readout)
 

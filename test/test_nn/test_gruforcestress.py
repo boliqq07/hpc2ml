@@ -83,7 +83,7 @@ class MyTestCase(unittest.TestCase):
         data.to("cuda:0")
 
         res = stresslayer(data)
-        resi = (res[0]-data.y).mean()+(res[1]-data.force).mean()+(res[2]-data.stress).mean()
+        resi = (res[0]-data.y).mean()+(res[1]-data.forces).mean()+(res[2]-data.stress).mean()
         resi.backward()
 
     def test_force_direct_stressxyz(self):
@@ -109,7 +109,7 @@ class MyTestCase(unittest.TestCase):
         data.to("cuda:0")
 
         res = stresslayer(data)
-        resi = (res[0]-data.y).mean()+(res[1]-data.force).mean()+(res[2]-data.stress).mean()
+        resi = (res[0]-data.y).mean()+(res[1]-data.forces).mean()+(res[2]-data.stress).mean()
         resi.backward()
 
 if __name__ == '__main__':

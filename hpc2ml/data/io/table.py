@@ -6,6 +6,7 @@ from hpc2ml.db.ase_db_extension.ext_db_csv import _decode_dct
 
 
 def sparse_csv(csv_file: str, fmt=lambda x: x):
+    """convert table."""
     if isinstance(csv_file, str):
         file = pd.read_csv(csv_file, index_col=0)
     else:
@@ -30,6 +31,6 @@ def sparse_csv(csv_file: str, fmt=lambda x: x):
                 value["structure"] = st
         else:
             raise NotImplementedError("Can't defined structure by names : `atoms` or `structure` in csv")
-        dct = {k: _decode_dct(data[k])}
+        dct = {k: value}
 
     return dct

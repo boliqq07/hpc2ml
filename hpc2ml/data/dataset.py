@@ -112,6 +112,10 @@ class SimpleDataset(Dataset):
 
         self.data = data_list
 
+    def to_mtbatch_data(self):
+        from hpc2ml.data.batchdata import MtBatchData
+        return MtBatchData.from_data_list(self.data)
+
 
 class InMemoryDatasetGeo(InMemoryDataset):
     """InMemoryDataset for materials.
@@ -186,6 +190,7 @@ class InMemoryDatasetGeo(InMemoryDataset):
 
     def process(self):
         # Read data into huge `Data` list.
+        print("Convert ./raw files to ./processed. >>>")
         data_list = self._load()
 
         if self.pre_filter is not None:
@@ -207,7 +212,11 @@ class InMemoryDatasetGeo(InMemoryDataset):
         os.makedirs(self.processed_dir)
         self.process()
 
-        print('Done!')
+        print('Done.')
+
+    def to_mtbatch_data(self):
+        from hpc2ml.data.batchdata import MtBatchData
+        return MtBatchData.from_data(self.data, self.slices)
 
 
 class DatasetGeo(Dataset):
@@ -285,9 +294,10 @@ class DatasetGeo(Dataset):
         os.makedirs(self.processed_dir)
         self.process()
 
-        print('Done!')
+        print('Done.')
 
     def process(self):
+        print("Convert ./raw files to ./processed. >>>")
         i = 0
         for raw_path in self.raw_paths:
             # Read data from `raw_path`.

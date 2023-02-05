@@ -134,7 +134,7 @@ class CGGRUForce(torch.nn.Module):
                                                    grad_outputs=torch.ones_like(energy),
                                                    create_graph=True)[0])
             else:
-                # just use force to add msg to loss, rather gradient
+                # just use forces to add msg to loss, rather gradient
                 forces = (torch.autograd.grad(energy, data.pos,
                                               grad_outputs=torch.ones_like(energy),
                                               retain_graph=True)[0])

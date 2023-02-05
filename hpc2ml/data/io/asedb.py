@@ -1,7 +1,15 @@
 """
 This part sparse db (ase) data.
-"""
 
+Examples:
+    >>> dict_data = sparse_ase(db="data.db")
+
+Examples:
+    >>> from hpc2ml.data.structuretodata import StructureToData
+    >>> addsap = StructureToData()
+    >>> source_path = "."
+    >>> res = addsap.sparse_source_data(source_file="data.db", source_path=source_path, fmt="ase",)
+"""
 
 from typing import Dict, Any, Union
 
@@ -28,7 +36,7 @@ def db_row2dct(row: AtomsRow
     return {id_str: temp}
 
 
-def sparse_ase(db: Union[SQLite3Database, JSONDatabase]) -> Dict[str, Any]:
+def sparse_ase(db: Union[SQLite3Database, JSONDatabase, str]) -> Dict[str, Any]:
     """Sparse ase data."""
     db = connect(db)
     dct = {}

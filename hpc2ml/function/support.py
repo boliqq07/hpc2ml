@@ -9,7 +9,7 @@ from torch_scatter import segment_coo, segment_csr
 
 
 def add_edge_total(data, use_pbc=True, use_exist_index=True, **kwargs):
-    """total function to add edge_weight,edge_attr,data.edge_index."""
+    """Total function to add edge_weight,edge_attr,data.edge_index."""
     if not use_pbc:
         if hasattr(data, "edge_index") and use_exist_index:
             data = add_edge_no_pbc_from_index(data, **kwargs)
@@ -24,7 +24,7 @@ def add_edge_total(data, use_pbc=True, use_exist_index=True, **kwargs):
 
 
 def add_edge_no_pbc(data, cutoff=5.0):
-    """add edge_weight,edge_attr,data.edge_index ignore pbc."""
+    """Add edge_weight,edge_attr,data.edge_index ignore pbc."""
     edge_index = radius_graph(data.pos, r=cutoff, batch=data.batch, flow='source_to_target')
     edge_index, _ = remove_self_loops(edge_index)
     row, col = edge_index[0], edge_index[1]
@@ -40,7 +40,7 @@ def add_edge_no_pbc(data, cutoff=5.0):
 
 
 def add_edge_no_pbc_from_index(data, dmin=0.0, dmax=6.0):
-    """add edge_weight,edge_attr ignore pbc from the old edge_index."""
+    """Add edge_weight,edge_attr ignore pbc from the old edge_index."""
 
     edge_index = data.edge_index
 
@@ -58,7 +58,7 @@ def add_edge_no_pbc_from_index(data, dmin=0.0, dmax=6.0):
 
 
 def compute_neighbors(data):
-    """add neighbors for each atom"""
+    """Add neighbors for each atom"""
     # Get number of neighbors
     # segment_coo assumes sorted index
     edge_index = data.edge_index
@@ -78,7 +78,7 @@ def compute_neighbors(data):
 
 
 def add_edge_pbc_from_index(data, **kwargs):
-    """add edge_weight,edge_attr with pbc from the old edge_index."""
+    """Add edge_weight,edge_attr with pbc from the old edge_index."""
 
     if not hasattr(data, "neighbors"):
         data = compute_neighbors(data)
@@ -104,7 +104,7 @@ def add_edge_pbc_from_index(data, **kwargs):
 
 
 def add_edge_pbc(data, cutoff=5.0, max_neighbors=16):
-    """add edge_weight,edge_attr with pbc."""
+    """Add edge_weight,edge_attr with pbc."""
     edge_index, cell_offsets, neighbors = _radius_graph_pbc(
         data, cutoff, max_neighbors
     )

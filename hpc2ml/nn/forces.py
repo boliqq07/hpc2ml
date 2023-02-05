@@ -3,10 +3,11 @@ from torch import nn
 from hpc2ml.nn.activations import Act
 
 
-class Force(nn.Module):
-    """Force net"""
+class Forces(nn.Module):
+    """Forces net"""
+
     def __init__(self, output_dim, decoder_type="mlp", decoder_activation_str="ssp", ):
-        super(Force, self).__init__()
+        super(Forces, self).__init__()
         self.decoder_type = decoder_type
         self.act = Act(decoder_activation_str)
         self.output_dim = output_dim
@@ -17,12 +18,12 @@ class Force(nn.Module):
             self.decoder = nn.Sequential(
                 nn.Linear(self.output_dim, self.output_dim),
                 self.act,
-                nn.Linear(self.output_dim, self.output_dim),
+                nn.Linear(self.output_dim, int(self.output_dim / 1)),
                 self.act,
-                nn.Linear(self.output_dim, 3),
+                nn.Linear(int(self.output_dim / 1), 3),
             )
         else:
-            raise ValueError(f"Undefined force decoder: {self.decoder_type}")
+            raise ValueError(f"Undefined forces decoder: {self.decoder_type}")
 
         self.reset_parameters()
 

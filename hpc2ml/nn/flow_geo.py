@@ -3,7 +3,7 @@ import shutil
 import sys
 import time
 import warnings
-from typing import Union, Tuple, List
+from typing import Union, Tuple, List, Optional
 
 import numpy as np
 import torch
@@ -43,6 +43,65 @@ def mae(prediction, target):
     target: torch.Tensor (N, 1)
     """
     return torch.mean(torch.abs(target - prediction))
+
+
+class ProcessOutLabel():
+    def __init__(self, multi_loss=False, target_name=("energy", "forces", 'stress'),
+                 process_label=None, process_out=None,
+                 ):
+
+        self.multi_loss = multi_loss
+
+        self.target_name = target_name
+
+        if target_name is None:
+            target_name = ("energy", "forces", "stress")
+
+        self.target_name = tuple(target_name) if isinstance(target_name, (tuple, list)) else (
+            target_name,)
+
+        if not self.multi_loss:
+            self.target_name = [self.target_name[0], ]
+            self.target_number = 1
+        else:
+            self.target_number = len(target_name)
+
+        def func11(data):
+            return tuple([data[i] for i in self.target_name])
+
+        if process_label is None:
+            self._process_label = func11
+        else:
+            self._process_label = process_label
+
+        def func2(y_or_ys, data=None):
+            if isinstance(y_or_ys, dict):
+                return tuple([y_or_ys[i] for i in self.target_name])
+            else:
+                return y_or_ys
+
+        if process_out is None:
+            self._process_out = func2
+        else:
+            self._process_out = process_out
+
+    def process_out(self, y_or_ys, data=None):
+        y_or_ys = self._process_out(y_or_ys, data)
+        if len(y_or_ys) < self.target_number:
+            raise KeyError("The target number {self.target_number} is not"
+                           f" consist with output {len(y_or_ys)}. "
+                           f"check `multi_loss` and `target_name`")
+
+        if len(y_or_ys) > self.target_number:
+            warnings.warn(f"The target number {self.target_number} less than"
+                          f" the output {len(y_or_ys)}. "
+                          f"Please defined your loss_method, and neglect the redundant output-i."
+                          f"Or add your `target_name`", UserWarning)
+        return y_or_ys if len(y_or_ys) > 1 else y_or_ys[0]
+
+    def process_label(self, data):
+        label = self._process_label(data=data)
+        return label if len(label) > 1 else label[0]
 
 
 class LearningFlow:
@@ -101,7 +160,8 @@ class LearningFlow:
                  device: Union[str, object] = "cpu",
                  optimizer=None, clf: bool = False, loss_method=None, learning_rate: float = 1e-3,
                  weight_decay: float = 0.0, checkpoint=True, scheduler=None, debug: str = None,
-                 target_layers: Union[str, List, Tuple] = "all", multi_loss=False, target_name=("y", "force",),
+                 target_layers: Union[str, List, Tuple] = "all", multi_loss=False,
+                 target_name: Optional[Tuple] = ("energy", "forces",),
                  loss_threshold: float = 0.1, print_freq: Union[int, str, None] = 10, print_what="all",
                  process_label=None, process_out=None, note=None, store_filename='checkpoint.pth.tar'):
         """
@@ -144,10 +204,21 @@ class LearningFlow:
             "all","train","test" log.
         scheduler:
             scheduler, see more in torch
-        process_label:Callable
-            function to get true y/label, mainly change shape.
+        process_label:Callable,
+            function to get true y/label, mainly change shape. input: Data, output: List[Tensor].
+            default:
+            >>> def func11(data):
+            ...    return tuple([data[i] for i in self.target_name])
+
         process_out:Callable
             function to get predict y, mainly change shape.
+            input:(Union[Tensor,List[Tensor], Data), output: List[Tensor].
+            default:
+            >>> def func2(y_or_ys, data=None):
+            >>> if isinstance(y_or_ys, dict):
+            ...    return tuple([y_or_ys[i] for i in self.target_name])
+            >>> else:
+            ...    return y_or_ys
         store_filename:str
             filename to store.
         """
@@ -155,6 +226,7 @@ class LearningFlow:
         if note is None:
             note = {}
         self.note = note
+
         self.train_loader = train_loader
         self.test_loader = test_loader
 
@@ -170,8 +242,10 @@ class LearningFlow:
         self.store_filename = store_filename
 
         self.weight_log = LogModule(model=model, target_layer="weight")
-        self.gradient_log = HookGradientModule(model=model, target_layer=target_layers)
+
         self.debug = "" if debug is None else debug
+        if "hook" in self.debug or "loop" in self.debug:
+            self.gradient_log = HookGradientModule(model=model, target_layer=target_layers)
 
         self.train_batch_number = len(self.train_loader)
 
@@ -186,29 +260,22 @@ class LearningFlow:
             self.optimizer = torch.optim.SGD(self.model.parameters(), lr=learning_rate, weight_decay=weight_decay)
             # L2 regularization
         else:
-            self.optimizer = optimizer(self.model.parameters(), lr=learning_rate, weight_decay=weight_decay)
+            self.optimizer = optimizer
 
         self.multi_loss = multi_loss
 
         if self.loss_method is None:
-            if not self.multi_loss:
-
-                if self.clf is True:
-                    self.loss_method = torch.nn.CrossEntropyLoss()
-                elif self.clf == "multi_label":
-                    self.loss_method = torch.nn.L1Loss()
-                    # 主要是用来判定实际的输出与期望的输出的接近程度 MAE: 1/N |y_pred-y| y 为多列
-                else:
-                    self.loss_method = torch.nn.MSELoss()
+            if self.clf is True:
+                lm = torch.nn.CrossEntropyLoss()
+            elif self.clf == "multi_label":
+                lm = torch.nn.L1Loss()
+                # 主要是用来判定实际的输出与期望的输出的接近程度 MAE: 1/N |y_pred-y| y 为多列
             else:
-                if self.clf is True:
-                    lm = torch.nn.CrossEntropyLoss()
-                elif self.clf == "multi_label":
-                    lm = torch.nn.L1Loss()
-                    # 主要是用来判定实际的输出与期望的输出的接近程度 MAE: 1/N |y_pred-y| y 为多列
-                else:
-                    lm = torch.nn.MSELoss()
+                lm = torch.nn.MSELoss()
 
+            if not self.multi_loss:
+                self.loss_method = lm
+            else:
                 def mlm(y_preds: tuple, batch_ys: tuple):
                     ls = []
                     for i, j in zip(y_preds, batch_ys):
@@ -234,29 +301,11 @@ class LearningFlow:
         self.fit = self.run_train
         self.print_what = print_what
 
-        if target_name is None:
-            target_name = ("y", "force", "stress")
-        self.ext_target_name = tuple(target_name) if isinstance(target_name, (tuple, list)) else (
-            target_name,)
+        if self.clf and process_label is None:
+            warnings.warn("We suggest defined the process_label for classification problem.")
 
-        # data.y, data.force
-        func1 = lambda y, data=None: y
-        func11 = lambda y, data: tuple([getattr(data, str(i)) for i in self.ext_target_name])
-
-        if process_label is None:
-            if not self.multi_loss:
-                self._process_label = func1
-            else:
-                self._process_label = func11
-        else:
-            self._process_label = process_label
-
-        func2 = lambda y_or_ys, data=None: y_or_ys
-
-        if process_out is None:
-            self._process_out = func2
-        else:
-            self._process_out = process_out
+        self.pol = ProcessOutLabel(multi_loss=self.multi_loss, target_name=target_name,
+                                   process_out=process_out, process_label=process_label)
 
         self.start_epoch = 0
 
@@ -265,6 +314,8 @@ class LearningFlow:
                                             "auc_scores")
         else:
             self.meters = AverageMeterTotal("Time", "losses", "mae_errors")
+
+        self.single_print = True
 
     def my_debug(self):
         # debug
@@ -301,7 +352,7 @@ class LearningFlow:
             self.model.train()
             for m, data in enumerate(self.train_loader):  # just record for once,
                 data = data.to(self.device)
-                batch_y = self.process_label(data.y, data=data)
+                batch_y = self.process_label(data=data)
                 self.model.zero_grad()
                 y_pred = self.model(data)
                 y_pred = self.process_out(y_pred)
@@ -312,20 +363,21 @@ class LearningFlow:
                 break
             self.gradient_log.stats_single()
 
-    def process_label(self, y, data=None):
-        return self._process_label(y, data=data)
+    def process_label(self, data=None):
+        return self.pol.process_label(data=data)
 
     def process_out(self, y, data=None):
-        return self._process_out(y, data)
+        return self.pol.process_out(y, data)
 
     def save_checkpoint(self, state, is_best, store_filename):
         if store_filename is not None:
             self.store_filename = store_filename
         torch.save(state, self.store_filename)
         if is_best:
-            shutil.copyfile(self.store_filename, 'model_best.pth.tar')
+            if self.store_filename != "model_best.pth.tar":
+                shutil.copyfile(self.store_filename, 'model_best.pth.tar')
 
-    def run(self, epoch=50, warm_start: Union[str, bool] = None, store_filename=None):
+    def run(self, epoch=50, warm_start: bool = False, store_filename=None):
         """
         run loop.
 
@@ -342,6 +394,8 @@ class LearningFlow:
         """
         if store_filename is not None:
             self.store_filename = store_filename
+        else:
+            self.store_filename = 'checkpoint.pth.tar'
 
         if warm_start:
             resume = self.store_filename
@@ -406,9 +460,10 @@ class LearningFlow:
         self.meters.reset()
 
         for m, data in enumerate(self.train_loader):
+
             point = time.time()
             data = data.to(self.device)
-            batch_y = self.process_label(data.y, data)
+            batch_y = self.process_label(data=data)
 
             self.optimizer.zero_grad()
 
@@ -425,6 +480,7 @@ class LearningFlow:
             del data
 
             # ###########
+
             self.print_rec(lossi, y_pred, batch_y, point)
 
             if self.print_freq != self.train_batch_number and m % self.print_freq == 0 \
@@ -435,26 +491,34 @@ class LearningFlow:
             print('Train: [{}] {}'.format(epochi, self.meters.text()))
 
     def print_rec(self, lossi, y_pred, data_y, point):
+
         if isinstance(y_pred, tuple):
             y_pred = y_pred[0]
         if isinstance(data_y, tuple):
             data_y = data_y[0]
 
         batch_size = data_y.size(0)
-        self.meters['Time'].record(time.time() - point)
-        self.meters['losses'].record(float(lossi.cpu().item()), batch_size)
+
+        lossi = float(lossi.__repr__()[7:].split(",")[0])  # more speed?
+        self.meters['losses'].record(lossi, batch_size)
 
         if self.clf is False:
-            mae_error = mae(y_pred.detach().cpu(), data_y.cpu())
+            mae_error = mae(y_pred, data_y)
+            mae_error = float(mae_error.__repr__()[7:].split(",")[0])  # more speed?
+
             self.meters['mae_errors'].record(mae_error, batch_size)
+
         else:
             accuracy, precision, recall, fscore, auc_score = \
-                class_eval(y_pred.detach.cpu(), data_y.cpu())
+                class_eval(y_pred.detach().cpu(), data_y.cpu())
             self.meters['accuracies'].record(accuracy, batch_size)
             self.meters['precisions'].record(precision, batch_size)
             self.meters['recalls'].record(recall, batch_size)
             self.meters['fscores'].record(fscore, batch_size)
             self.meters['auc_scores'].record(auc_score, batch_size)
+
+        time_range = time.time() - point
+        self.meters['Time'].record(time_range)
 
     def _validate(self, epochi):
         self.model.eval()
@@ -464,7 +528,7 @@ class LearningFlow:
             point = time.time()
 
             data = data.to(self.device)
-            batch_y = self.process_label(data.y, data)
+            batch_y = self.process_label(data=data)
             y_pred = self.model(data)
             y_pred = self.process_out(y_pred, data)
 
@@ -493,7 +557,7 @@ class LearningFlow:
         y_pre, y_true = self.predict(predict_loader)
         if not scoring:
             scoring = self.loss_method
-        return float(scoring(self.process_label(y_pre), self.process_label(y_true)))
+        return float(scoring(y_pre, y_true))
 
     def predict(self, predict_loader: DataLoader, return_y_true=False, add_hook=False, hook_layer=None, device='cpu'):
         """
@@ -531,7 +595,8 @@ class LearningFlow:
                 raise AttributeError("use ``hook_layer`` to defined the hook layer.")
 
         res = simple_predict(self.model, predict_loader, return_y_true=return_y_true, device=device,
-                             process_out=self.process_out, process_label=self.process_label)
+                             process_out=self.pol.process_out, process_label=self.pol._process_label,
+                             multi_loss=self.multi_loss)
 
         if add_hook:
             [i.remove() for i in handles]  # del
@@ -539,8 +604,23 @@ class LearningFlow:
         return res
 
 
+def cat(y_preds):
+    if isinstance(y_preds[0], (tuple, list)):
+        y_preds = list(zip(*y_preds))
+        if len(y_preds) == 1:
+            y_preds = [i[0] for i in y_preds]
+        else:
+            y_preds = [torch.cat(i, dim=0) for i in y_preds]
+    else:
+        if len(y_preds) == 1:
+            y_preds = y_preds[0]
+        else:
+            y_preds = torch.cat(y_preds, dim=0)
+    return y_preds
+
+
 def simple_predict(model, predict_loader: DataLoader, return_y_true=False, device='cpu', process_out=None,
-                   process_label=None):
+                   process_label=None, target_name=("energy", "forces", "stress"), multi_loss=False):
     """
     Just predict by model,and add one forward hook to get processing output.
 
@@ -560,10 +640,9 @@ def simple_predict(model, predict_loader: DataLoader, return_y_true=False, devic
         if return_y_true
 
     """
-    if process_out is None:
-        process_out = lambda x, data: x.view(-1)
-    if process_label is None:
-        process_label = lambda x: x.view(-1)
+
+    pol = ProcessOutLabel(multi_loss=multi_loss, target_name=target_name,
+                          process_label=process_label, process_out=process_out)
 
     model.eval()
     model.to(device)
@@ -577,31 +656,17 @@ def simple_predict(model, predict_loader: DataLoader, return_y_true=False, devic
 
         y_prei = model(data)
         if isinstance(y_prei, tuple):
-            y_prei = [i.detach().cpu() for i in y_prei]
+            y_prei = [i.detach() for i in y_prei]
         else:
-            y_prei = y_prei.detach().cpu()
-        y_preds.append(process_out(y_prei, data))
+            y_prei = y_prei.detach()
 
-        if hasattr(data, "y"):
-            if isinstance(data.y, tuple):
-                data_y = [i.detach().cpu() for i in data.y]
-            else:
-                data_y = data.y.detach().cpu()
-            y_true.append(process_label(data_y))
+        y_preds.append(pol.process_out(y_prei, data))
+        if return_y_true:
+            y_true.append(pol.process_label(data))
 
-    if isinstance(y_preds[0], tuple):
-        y_preds = list(zip(y_preds))
-        y_preds = [torch.cat(i) for i in y_preds]
-    else:
-        y_preds = torch.cat(y_preds)
-
-    if isinstance(y_true[0], tuple):
-        y_true = list(zip(y_true))
-        y_true = [torch.cat(i) for i in y_true]
-    else:
-        y_true = torch.cat(y_true)
-
-    if return_y_true and y_true != []:
+    y_preds = cat(y_preds)
+    if return_y_true:
+        y_true = cat(y_true)
         return y_preds, y_true
     else:
         return y_preds
