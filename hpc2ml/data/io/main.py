@@ -8,7 +8,6 @@ Examples for ase db:
 Examples for Vasp:
     >>> from hpc2ml.data.structuretodata import StructureToData
     >>> addsap = StructureToData()
-    >>> from hpc2ml.data.io.main import find_leaf_path
     >>> source_path = find_leaf_path("./data") # get path list
     >>> res = addsap.sparse_source_data(source_file="vasprun.xml", source_path=source_path, fmt="vasprun",)
     >>> res2 = addsap.sparse_source_data(source_file="vasprun.xml", source_path=source_path, fmt="vasp_traj",space=5)
@@ -75,26 +74,3 @@ def sparse_source_data(source_file: str = "vasprun.xml", source_path: Union[Sequ
     #         print(f"Error: {i}.")
 
     return dct
-
-
-def find_leaf_path(root_pt):
-    """
-    Find the leaf path.
-
-    Args:
-        root_pt: pt: (str, path.Path, os.PathLike,pathlib.Path), path.
-
-    Returns:
-        paths: (list), list of sub leaf path.
-
-    """
-    if not isinstance(root_pt, path.Path):
-        root_pt = path.Path(root_pt)
-
-    sub_disk = list(root_pt.walkdirs())
-
-    par_disk = [i.parent for i in sub_disk]
-    par_disk = list(set(par_disk))
-
-    res = [i for i in sub_disk if i not in par_disk]
-    return res
