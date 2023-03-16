@@ -3,7 +3,7 @@ import torch.nn.functional
 from e3nn.o3 import Irreps
 from e3nn.util.jit import compile_mode
 
-from hpc2ml.data import AtomicDataDict
+from hpc2ml.data.nequlip_support import AtomicDataDict
 from hpc2ml.data.nequlip_support.AtomicDataDict import ST
 from .._graph_mixin import GraphModuleMixin
 

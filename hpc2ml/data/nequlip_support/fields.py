@@ -1,6 +1,6 @@
 from typing import Tuple, Union, Sequence, Set
 
-from hpc2ml.data import AtomicDataDict
+from hpc2ml.data.nequlip_support import AtomicDataDict
 
 PBC = Union[bool, Tuple[bool, bool, bool]]
 

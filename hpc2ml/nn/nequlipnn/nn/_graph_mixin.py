@@ -5,7 +5,7 @@ from typing import Dict, Tuple, Callable, Any, Sequence, Union, Optional
 import torch
 from e3nn import o3
 
-from hpc2ml.data import AtomicDataDict
+from hpc2ml.data.nequlip_support import AtomicDataDict
 from hpc2ml.data.nequlip_support.AtomicDataDict import ST
 from hpc2ml.utils.nequliputils.auto_init import instantiate
 

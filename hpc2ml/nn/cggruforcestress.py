@@ -222,8 +222,17 @@ class CGGRUForceStress(torch.nn.Module):
         self.lin0 = nn.Linear(nfeat_node, dim)
         self.act0 = Act("leaky_relu")
 
-        conv0 = PotConv(in_channels=dim, out_channels=dim, nc_edge_hidden=nc_edge_hidden, pot=pot, mode=mode)
-        # conv0 = NNConv(in_channels=dim, out_channels=dim, nc_edge_hidden=nc_edge_hidden, mlp=None, cutoff=cutoff)
+        if pot in ["morse", "lj"]:
+
+            if nc_edge_hidden==1:
+                mode ="r"
+            elif nc_edge_hidden==3:
+                mode ="xyz"
+            else:
+                raise NotImplementedError
+            conv0 = PotConv(in_channels=dim, out_channels=dim, nc_edge_hidden=nc_edge_hidden, pot=pot, mode=mode)
+        else:
+            conv0 = NNConv(in_channels=dim, out_channels=dim, nc_edge_hidden=nc_edge_hidden, mlp=None, cutoff=cutoff)
 
         self.gru = GRU(dim, dim)
 
@@ -231,7 +240,8 @@ class CGGRUForceStress(torch.nn.Module):
 
         self.conv_list = nn.ModuleList([conv0, ])
         for i in range(n_block - 1):
-            self.conv_list.append(NNConv(in_channels=dim, out_channels=dim, nc_edge_hidden=nc_edge_hidden,
+            self.conv_list.append(NNConv(in_channels=dim, out_channels=dim,
+                                         nc_edge_hidden=nc_edge_hidden,
                                          mlp=None, cutoff=cutoff))
 
         self.readout = readout

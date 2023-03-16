@@ -6,7 +6,7 @@ from e3nn.o3 import Irreps
 from e3nn.util.jit import compile_mode
 from torch_geometric.data import Batch, Data
 
-from hpc2ml.data import AtomicDataDict
+from hpc2ml.data.nequlip_support import AtomicDataDict
 from hpc2ml.data.batchdata import to_atomicdatadict
 from hpc2ml.data.nequlip_support.AtomicDataDict import ST
 from ._graph_mixin import GraphModuleMixin

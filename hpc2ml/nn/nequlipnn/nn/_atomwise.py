@@ -10,7 +10,7 @@ from e3nn.util.jit import compile_mode
 from torch_runstats.scatter import scatter, scatter_mean
 from torch_scatter import scatter as sca
 
-from hpc2ml.data import AtomicDataDict
+from hpc2ml.data.nequlip_support import AtomicDataDict
 from hpc2ml.data.nequlip_support.AtomicDataDict import ST, SI
 from hpc2ml.data.nequlip_support._transforms import TypeMapper
 from ._graph_mixin import GraphModuleMixin

@@ -4,7 +4,7 @@ import torch
 from e3nn import o3
 from torch_geometric.data import Batch, Data
 
-from hpc2ml.data import AtomicDataDict
+from hpc2ml.data.nequlip_support import AtomicDataDict
 from hpc2ml.data.batchdata import to_atomicdatadict
 from hpc2ml.nn.nequlipnn.nn import AtomwiseLinear, ConvNetLayer, InteractionBlock, AtomwiseReduce
 from hpc2ml.nn.nequlipnn.nn.cutoffs import PolynomialCutoff

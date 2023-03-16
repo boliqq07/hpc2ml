@@ -87,8 +87,12 @@ class ProcessOutLabel():
 
     def process_out(self, y_or_ys, data=None):
         y_or_ys = self._process_out(y_or_ys, data)
+
+        if isinstance(y_or_ys, torch.Tensor):
+            return y_or_ys
+
         if len(y_or_ys) < self.target_number:
-            raise KeyError("The target number {self.target_number} is not"
+            raise KeyError(f"The target number {self.target_number} is not"
                            f" consist with output {len(y_or_ys)}. "
                            f"check `multi_loss` and `target_name`")
 
@@ -101,6 +105,10 @@ class ProcessOutLabel():
 
     def process_label(self, data):
         label = self._process_label(data=data)
+
+        if isinstance(label, torch.Tensor):
+            return label
+
         return label if len(label) > 1 else label[0]
 
 
@@ -559,7 +567,8 @@ class LearningFlow:
             scoring = self.loss_method
         return float(scoring(y_pre, y_true))
 
-    def predict(self, predict_loader: DataLoader, return_y_true=False, add_hook=False, hook_layer=None, device='cpu'):
+    def predict(self, predict_loader: DataLoader, return_y_true=False,
+                add_hook=False, hook_layer=None, device='cpu'):
         """
         Just predict by model,and add one forward hook to get processing output.
 
@@ -597,6 +606,8 @@ class LearningFlow:
         res = simple_predict(self.model, predict_loader, return_y_true=return_y_true, device=device,
                              process_out=self.pol.process_out, process_label=self.pol._process_label,
                              multi_loss=self.multi_loss)
+
+
 
         if add_hook:
             [i.remove() for i in handles]  # del
@@ -665,6 +676,7 @@ def simple_predict(model, predict_loader: DataLoader, return_y_true=False, devic
             y_true.append(pol.process_label(data))
 
     y_preds = cat(y_preds)
+
     if return_y_true:
         y_true = cat(y_true)
         return y_preds, y_true

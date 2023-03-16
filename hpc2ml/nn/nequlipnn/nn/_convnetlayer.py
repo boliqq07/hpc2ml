@@ -4,7 +4,7 @@ import torch
 from e3nn import o3
 from e3nn.nn import Gate, NormActivation
 
-from hpc2ml.data import AtomicDataDict
+from hpc2ml.data.nequlip_support import AtomicDataDict
 from hpc2ml.data.nequlip_support.AtomicDataDict import ST
 from ._interaction_block import InteractionBlock
 from ._graph_mixin import GraphModuleMixin

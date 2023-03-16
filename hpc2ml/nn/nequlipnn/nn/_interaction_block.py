@@ -7,7 +7,7 @@ from e3nn.nn import FullyConnectedNet
 from e3nn.o3 import TensorProduct, Linear, FullyConnectedTensorProduct
 from torch_runstats.scatter import scatter
 
-from hpc2ml.data import AtomicDataDict
+from hpc2ml.data.nequlip_support import AtomicDataDict
 from hpc2ml.data.nequlip_support.AtomicDataDict import ST
 from ._graph_mixin import GraphModuleMixin
 from .nonlinearities import ShiftedSoftPlus

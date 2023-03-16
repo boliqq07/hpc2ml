@@ -16,7 +16,6 @@ from torch_geometric.data.data import BaseData
 from torch_geometric.data.in_memory_dataset import nested_iter
 from torch_geometric.data.separate import separate
 
-from hpc2ml.data import AtomicDataDict
 from hpc2ml.data.io import aaa
 from hpc2ml.data.io.main import sparse_source_data
 from hpc2ml.data.structuretodata import StructureToData
@@ -367,7 +366,7 @@ class MtBatchData(Batch):
             assert len(batch_atoms) == 1
             return batch_atoms[0], kw
 
-    def to_atomicdatadict(self: Data, exclude_keys=tuple()) -> "AtomicDataDict.ST":
+    def to_atomicdatadict(self: Data, exclude_keys=tuple()) -> dict:
         """To dict to compare with AtomicDataDict"""
         keys = self.keys
 
@@ -504,7 +503,8 @@ class MtBatchData(Batch):
                 pass
             else:
                 arr = getattr(self, fi)
-                ana_mode_name = "".join(ana_mode_dict.keys())
+
+                ana_mode_name = "".join([i for i in ana_mode_dict.keys() if ana_mode_dict[i] is not False ])
                 arr, _ = self._per_static(fi, ana_mode_name, arr, inverse=False)
 
                 if "mean" in ana_mode_dict and "std" in ana_mode_dict:
@@ -526,7 +526,7 @@ class MtBatchData(Batch):
             else:
                 arr = getattr(self, fi)
 
-                ana_mode_name = "".join(ana_mode_dict.keys())
+                ana_mode_name = "".join([i for i in ana_mode_dict.keys() if ana_mode_dict[i] is not False ])
                 arr, _ = self._per_static(fi, ana_mode_name, arr, inverse=True)
 
                 if "mean" in ana_mode_dict and "std" in ana_mode_dict:
@@ -612,7 +612,7 @@ class MtBatchData(Batch):
             x_ = np.arange(len(v))
             plt.subplot(shape, 1, p)
             plt.xticks(x_, x_)
-            plt.plot(x_, v, marker="o", )
+            plt.scatter(x_, v, marker="o" )
             plt.title(k)
 
         for k, v in sp2.items():
@@ -620,7 +620,11 @@ class MtBatchData(Batch):
             plt.subplot(shape, 1, p)
             plt.imshow(v)
             plt.title(k)
-        plt.show()
+        plt.savefig("data_range.jpg")
+        try:
+            plt.show()
+        except BaseException:
+            pass
 
     def plot_show_simple(self, fields: Union[str, List[str]] = "energy",
                          modes: Union[str, List[str]] = "self",
@@ -631,7 +635,7 @@ class MtBatchData(Batch):
         self.plot_show(fields=fields, modes=modes, unbiased=unbiased, by_dim=by_dim)
 
 
-def to_atomicdatadict(data: [Batch, Data, MtBatchData], exclude_keys=tuple()) -> AtomicDataDict.ST:
+def to_atomicdatadict(data: [Batch, Data, MtBatchData], exclude_keys=tuple()) -> dict:
     """quick to dict."""
     keys = data.keys
     return {k: data[k]

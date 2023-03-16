@@ -63,7 +63,7 @@ import numpy as np
 import pandas as pd
 import torch
 from pymatgen.core import Structure, Element
-from pymatgen.optimization.neighbors import find_points_in_spheres
+from pymatgen.optimization.neighbors import find_points_in_spheres  # this is ok
 from torch_geometric.data import Data
 
 from hpc2ml.data.io.main import sparse_source_data
@@ -172,7 +172,7 @@ class StructureToData:
             >>> addsap = StructureToData(sub_converters=[PAddFracCoords(), PAddForce(),
             ...                                          PAddPBCEdgeDistance(cutoff=5.0),
             ...                                          PAddStress()])
-            >>> from hpc2ml.data.io.main import find_leaf_path
+            >>> from mgetool.imports.leaf import find_leaf_path
             >>> source_path = find_leaf_path("./data/") # paths list
             >>> res = addsap.sparse_source_data(source_file="vasprun.xml", source_path=source_path, fmt="vasprun_traj",
             ...                          store_path_file="temp_sparse_dict.pkl_pd", n_jobs=4)

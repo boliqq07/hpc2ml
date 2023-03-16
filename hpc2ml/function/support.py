@@ -3,7 +3,8 @@
 import math
 
 import torch
-from torch_cluster import radius_graph
+from torch_geometric.nn import radius_graph
+# from torch_cluster import radius_graph
 from torch_geometric.utils import remove_self_loops
 from torch_scatter import segment_coo, segment_csr
 

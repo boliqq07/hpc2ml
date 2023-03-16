@@ -117,7 +117,7 @@ class GNNEICalculater(Calculator):
                                device=self.device, note=self.note, multi_loss=True,
                                target_name=tuple(self.implemented_properties),
                                checkpoint=True, store_filename=self.resume_file,
-                               loss_threshold=0.003,print_what=print_what,
+                               loss_threshold=0.003, print_what=print_what,
                                )
 
         self.lf.start_epoch = self.start_epoch
@@ -233,140 +233,140 @@ class GNNEICalculater(Calculator):
         return results_batch
 
 
-class GNNMultiEICalculater(Calculator):
-    implemented_properties: List[str] = ["energy", "forces"]
-
-    _deprecated = object()
-
-    'Properties calculator can handle (energy, forces)'
-
-    def __init__(self, models, resume_files: List, atoms=None, directory='.', convert=StructureToData(),
-                 device="cpu", properties=None,
-                 **kwargs):
-        if properties is not None:
-            self.implemented_properties = properties
-
-        self.num = len(resume_files)
-
-        if not isinstance(models, List):
-            models = [models for _ in range(self.num)]
-
-        if isinstance(models, List):
-            assert len(models) == len(resume_files)
-
-        self.resume_files = [path.Path(directory) / i for i in resume_files]
-
-        self.sub = []
-        for mi, ri in zip(models, self.resume_files):
-            single = GNNEICalculater(mi, ri, atoms=atoms, directory=directory,
-                                     properties=self.implemented_properties,
-                                     convert=convert, device=device, **kwargs)
-
-            self.sub.append(single)
-
-        self.note = self.sub[0].note  # keep it is the same
-        self.convert = convert
-        super(GNNMultiEICalculater, self).__init__(atoms, directory=directory, **kwargs)
-
-    def get_bath_data(self, atoms=None, **kwargs):
-
-        from hpc2ml.data.batchdata import MtBatchData
-        dataset = MtBatchData.from_atoms(atoms, **kwargs, convert=self.convert)
-        dataset.scale(dct=self.note)
-        return dataset
-
-    def get_property(self, name, atoms=None, allow_calculation=True):
-        if name not in self.implemented_properties:
-            raise PropertyNotImplementedError('{} property not implemented'
-                                              .format(name))
-
-        if atoms is None:
-            atoms = self.atoms
-        else:
-            system_changes = self.check_state(atoms)
-            if system_changes:
-                self.reset()
-        if name not in self.results:
-            if not allow_calculation:
-                return None
-            self.calculate(atoms)
-
-        if name not in self.results:
-            # For some reason the calculator was not able to do what we want,
-            # and that is OK.
-            raise PropertyNotImplementedError('{} not present in this '
-                                              'calculation'.format(name))
-
-        result = self.results[name]
-        if isinstance(result, np.ndarray):
-            result = result.copy()
-        return result
-
-    def train(self, atoms=None, **kwargs):
-        """train"""
-
-        dataset = self.get_bath_data(atoms=self.atoms, **kwargs)
-
-        for si in self.sub:
-            si.train(atoms=atoms, batch_data=dataset)
-
-    def calculate(self, atoms=None, properties=None):
-        if properties is None:
-            properties = tuple(self.implemented_properties)
-        self.results = {}
-
-        if atoms is not None:
-            self.atoms = atoms.copy()
-
-        dataset = self.get_bath_data(atoms=atoms)
-
-        for si in self.sub:
-            si.calculate(atoms=atoms, batch_data=dataset)
-
-            for pi in properties:
-                if f"{pi}_all" in self.results:
-                    self.results[f"{pi}_all"].append(si.results[pi])
-
-                else:
-                    self.results[f"{pi}_all"] = [si.results[pi]]
-        for pi in properties:
-            piv = np.array(self.results[f"{pi}_all"])
-            if piv.ndim > 1:
-                self.results[f"{pi}"] = np.mean(piv, axis=0)
-                self.results[f"{pi}_std"] = np.std(piv, axis=0)
-            else:
-                self.results[f"{pi}"] = np.mean(piv)
-                self.results[f"{pi}_std"] = np.std(piv)
-
-    def calculate_batch(self, atoms, properties=None):
-        if properties is None:
-            properties = tuple(self.implemented_properties)
-        self.results = {}
-
-        if isinstance(atoms, Atoms):
-            atoms = [atoms, ]
-        else:
-            atoms = atoms
-
-        dataset = self.get_bath_data(atoms=atoms)
-
-        result_batch = {}
-
-        for si in self.sub:
-            res = si.calculate_batch(atoms=atoms, batch_data=dataset)
-
-            for pi in properties:
-                if f"{pi}_all" in res:
-                    result_batch[f"{pi}_all"].append(res[pi])
-
-                else:
-                    result_batch[f"{pi}_all"] = [res[pi]]
-        for pi in properties:
-            piv = np.array(result_batch[f"{pi}_all"])
-            if piv.ndim > 1:
-                result_batch[f"{pi}"] = np.mean(piv, axis=0)
-                result_batch[f"{pi}_std"] = np.std(piv, axis=0)
-            else:
-                result_batch[f"{pi}"] = np.mean(piv)
-                result_batch[f"{pi}_std"] = np.std(piv)
-        return result_batch
+# class GNNMultiEICalculater(Calculator):
+#     implemented_properties: List[str] = ["energy", "forces"]
+#
+#     _deprecated = object()
+#
+#     'Properties calculator can handle (energy, forces)'
+#
+#     def __init__(self, models, resume_files: List, atoms=None, directory='.', convert=StructureToData(),
+#                  device="cpu", properties=None,
+#                  **kwargs):
+#         if properties is not None:
+#             self.implemented_properties = properties
+#
+#         self.num = len(resume_files)
+#
+#         if not isinstance(models, List):
+#             models = [models for _ in range(self.num)]
+#
+#         if isinstance(models, List):
+#             assert len(models) == len(resume_files)
+#
+#         self.resume_files = [path.Path(directory) / i for i in resume_files]
+#
+#         self.sub = []
+#         for mi, ri in zip(models, self.resume_files):
+#             single = GNNEICalculater(mi, ri, atoms=atoms, directory=directory,
+#                                      properties=self.implemented_properties,
+#                                      convert=convert, device=device, **kwargs)
+#
+#             self.sub.append(single)
+#
+#         self.note = self.sub[0].note  # keep it is the same
+#         self.convert = convert
+#         super(GNNMultiEICalculater, self).__init__(atoms, directory=directory, **kwargs)
+#
+#     def get_bath_data(self, atoms=None, **kwargs):
+#
+#         from hpc2ml.data.batchdata import MtBatchData
+#         dataset = MtBatchData.from_atoms(atoms, **kwargs, convert=self.convert)
+#         dataset.scale(dct=self.note)
+#         return dataset
+#
+#     def get_property(self, name, atoms=None, allow_calculation=True):
+#         if name not in self.implemented_properties:
+#             raise PropertyNotImplementedError('{} property not implemented'
+#                                               .format(name))
+#
+#         if atoms is None:
+#             atoms = self.atoms
+#         else:
+#             system_changes = self.check_state(atoms)
+#             if system_changes:
+#                 self.reset()
+#         if name not in self.results:
+#             if not allow_calculation:
+#                 return None
+#             self.calculate(atoms)
+#
+#         if name not in self.results:
+#             # For some reason the calculator was not able to do what we want,
+#             # and that is OK.
+#             raise PropertyNotImplementedError('{} not present in this '
+#                                               'calculation'.format(name))
+#
+#         result = self.results[name]
+#         if isinstance(result, np.ndarray):
+#             result = result.copy()
+#         return result
+#
+#     def train(self, atoms=None, **kwargs):
+#         """train"""
+#
+#         dataset = self.get_bath_data(atoms=self.atoms, **kwargs)
+#
+#         for si in self.sub:
+#             si.train(atoms=atoms, batch_data=dataset)
+#
+#     def calculate(self, atoms=None, properties=None):
+#         if properties is None:
+#             properties = tuple(self.implemented_properties)
+#         self.results = {}
+#
+#         if atoms is not None:
+#             self.atoms = atoms.copy()
+#
+#         dataset = self.get_bath_data(atoms=atoms)
+#
+#         for si in self.sub:
+#             si.calculate(atoms=atoms, batch_data=dataset)
+#
+#             for pi in properties:
+#                 if f"{pi}_all" in self.results:
+#                     self.results[f"{pi}_all"].append(si.results[pi])
+#
+#                 else:
+#                     self.results[f"{pi}_all"] = [si.results[pi]]
+#         for pi in properties:
+#             piv = np.array(self.results[f"{pi}_all"])
+#             if piv.ndim > 1:
+#                 self.results[f"{pi}"] = np.mean(piv, axis=0)
+#                 self.results[f"{pi}_std"] = np.std(piv, axis=0)
+#             else:
+#                 self.results[f"{pi}"] = np.mean(piv)
+#                 self.results[f"{pi}_std"] = np.std(piv)
+#
+#     def calculate_batch(self, atoms, properties=None):
+#         if properties is None:
+#             properties = tuple(self.implemented_properties)
+#         self.results = {}
+#
+#         if isinstance(atoms, Atoms):
+#             atoms = [atoms, ]
+#         else:
+#             atoms = atoms
+#
+#         dataset = self.get_bath_data(atoms=atoms)
+#
+#         result_batch = {}
+#
+#         for si in self.sub:
+#             res = si.calculate_batch(atoms=atoms, batch_data=dataset)
+#
+#             for pi in properties:
+#                 if f"{pi}_all" in res:
+#                     result_batch[f"{pi}_all"].append(res[pi])
+#
+#                 else:
+#                     result_batch[f"{pi}_all"] = [res[pi]]
+#         for pi in properties:
+#             piv = np.array(result_batch[f"{pi}_all"])
+#             if piv.ndim > 1:
+#                 result_batch[f"{pi}"] = np.mean(piv, axis=0)
+#                 result_batch[f"{pi}_std"] = np.std(piv, axis=0)
+#             else:
+#                 result_batch[f"{pi}"] = np.mean(piv)
+#                 result_batch[f"{pi}_std"] = np.std(piv)
+#         return result_batch

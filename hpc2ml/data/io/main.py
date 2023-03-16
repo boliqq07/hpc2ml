@@ -9,8 +9,10 @@ Examples for Vasp:
     >>> from hpc2ml.data.structuretodata import StructureToData
     >>> addsap = StructureToData()
     >>> source_path = find_leaf_path("./data") # get path list
-    >>> res = addsap.sparse_source_data(source_file="vasprun.xml", source_path=source_path, fmt="vasprun",)
-    >>> res2 = addsap.sparse_source_data(source_file="vasprun.xml", source_path=source_path, fmt="vasp_traj",space=5)
+    >>> res = addsap.sparse_source_data(source_file="vasprun.xml",
+    ... source_path=source_path, fmt="vasprun",)
+    >>> res2 = addsap.sparse_source_data(source_file="vasprun.xml",
+    ... source_path=source_path, fmt="vasprun_traj",space=5)
 
 Examples for csv:
     >>> from hpc2ml.data.structuretodata import StructureToData
@@ -23,12 +25,11 @@ Examples for csv:
 import os
 from typing import Union, Sequence
 
-import path
-
 from mgetool.tool import parallelize
 
 
-def sparse_source_data(source_file: str = "vasprun.xml", source_path: Union[Sequence, str] = ".", fmt: str = "vasprun",
+def sparse_source_data(source_file: str = "vasprun.xml", source_path: Union[Sequence, str] = ".",
+                       fmt: str = "vasprun",
                        n_jobs=4, **kwargs):
     """
     Sparse data by different function.

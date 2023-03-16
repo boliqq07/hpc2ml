@@ -13,7 +13,7 @@ with open(path.join(this_directory, 'README.md'), encoding='utf-8') as f:
 setup(
 
     name='hpc2ml',
-    version='0.0.01',
+    version='0.0.02',
     description='Crystal extension for pytorch_geometric',
     install_requires=["pymatgen", "ase", "mgetool>=0.0.60"],
     # install_requires=['torch-geometric', "torch", "pymatgen", "ase", "mgetool"],

@@ -4,7 +4,7 @@ from typing import Dict, Optional, Union, List
 import ase.data
 import torch
 
-from hpc2ml.data import AtomicDataDict
+from hpc2ml.data.nequlip_support import AtomicDataDict
 from hpc2ml.data.nequlip_support.AtomicDataDict import ST
 
 
