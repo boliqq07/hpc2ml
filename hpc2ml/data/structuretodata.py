@@ -720,13 +720,15 @@ class PAddForce(StructureToData):
     Add forces by np.array (2D).
     """
 
-    def __init__(self, *args, **kwargs):
+    def __init__(self, *args, check=True, **kwargs):
         super(PAddForce, self).__init__(*args, **kwargs)
+        self.check = check
 
     def _convert(self, data: Structure, **kwargs) -> Data:
-        assert "forces" in kwargs
-        forces = torch.from_numpy(kwargs["forces"]).float()
-        return Data(forces=forces)
+        if self.check:
+            assert "forces" in kwargs
+            forces = torch.from_numpy(kwargs["forces"]).float()
+            return Data(forces=forces)
 
 
 class PAddXEmbeddingDict(StructureToData):
@@ -983,7 +985,7 @@ class PAddStress(StructureToData):
     Add stress."""
 
     def __init__(self, *args, stress_max: float = 15.0,
-                 stress_min: float = -15.0, voigt_6=False,
+                 stress_min: float = -15.0, voigt_6=False, check:bool=True,
                  **kwargs):
 
         super(PAddStress, self).__init__(*args, **kwargs)
@@ -991,23 +993,25 @@ class PAddStress(StructureToData):
         self.stress_max = stress_max
         self.stress_min = stress_min
         self.voigt_6 = voigt_6
+        self.check = check
 
     def _convert(self, data: Structure, **kwargs) -> Data:
-        assert "stress" in kwargs
-        stress = np.array(kwargs["stress"])
-        if self.voigt_6:
-            if stress.shape == (3, 3):
-                stress = full_3x3_to_voigt_6_stress(stress)
-            stress = torch.from_numpy(stress.reshape(1, -1)).float()
-        else:
-            if stress.shape == (6,):
-                stress = voigt_6_to_full_3x3_stress(stress)
-            stress = torch.unsqueeze(torch.from_numpy(stress), dim=0)
+        if self.check:
+            assert "stress" in kwargs
+            stress = np.array(kwargs["stress"])
+            if self.voigt_6:
+                if stress.shape == (3, 3):
+                    stress = full_3x3_to_voigt_6_stress(stress)
+                stress = torch.from_numpy(stress.reshape(1, -1)).float()
+            else:
+                if stress.shape == (6,):
+                    stress = voigt_6_to_full_3x3_stress(stress)
+                stress = torch.unsqueeze(torch.from_numpy(stress), dim=0)
 
-        if torch.max(stress) > self.stress_max or torch.min(stress) < self.stress_min:
-            raise ValueError("Bad structure with large stress out of range.")
+            if torch.max(stress) > self.stress_max or torch.min(stress) < self.stress_min:
+                raise ValueError("Bad structure with large stress out of range.")
 
-        return Data(stress=stress)
+            return Data(stress=stress)
 
 
 class PAddFracCoords(StructureToData):

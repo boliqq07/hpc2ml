@@ -51,7 +51,7 @@ class GNNEICalculater(Calculator):
         self.resume_file = resume_file
         self.device = torch.device(device)
         if properties is not None:
-            self.implemented_properties=properties
+            self.implemented_properties = properties
 
         from hpc2ml.nn.flow_geo import load_check_point
 
@@ -62,33 +62,6 @@ class GNNEICalculater(Calculator):
                                                                            resume_file=resume_file,
                                                                            optimizer=optimizer,
                                                                            device=self.device)
-        # temp/ delete it later
-        # note1 = {}
-        # if "mean" in note:
-        #     if "energy" in note1:
-        #         note1["energy"].update({"mean":note["mean"]})
-        #     else:
-        #         note1["energy"] = {"mean": note["mean"]}
-        #
-        # if "std" in note:
-        #     if "energy" in note1:
-        #         note1["energy"].update({"std":note["std"]})
-        #     else:
-        #         note1["energy"] = {"std": note["std"]}
-        #
-        # if "mean1" in note:
-        #     if "forces" in note1:
-        #         note1["forces"].update({"mean":note["mean1"]})
-        #     else:
-        #         note1["forces"] = {"mean": note["mean1"]}
-        #
-        # if "std1" in note:
-        #     if "forces" in note1:
-        #         note1["forces"].update({"std":note["std1"]})
-        #     else:
-        #         note1["forces"] = {"std": note["std1"]}
-        # note =note1
-        #####
 
         self.model = model
         self.optimizer = optimizer
@@ -126,16 +99,23 @@ class GNNEICalculater(Calculator):
         self.lf.run(epoch=5)
         print("Done.")
 
-    def get_bath_data(self, atoms=None, **kwargs)->"MtBatchData":
+    def get_bath_data(self, atoms=None, **kwargs) -> "MtBatchData":
         """Get scaled data."""
         batch = MtBatchData.from_atoms(atoms, **kwargs, convert=self.convert)
         batch.scale(dct=self.note)
         return batch
 
-    def get_res_from_bath_data(self, batch:MtBatchData, msg_dict:dict)->"MtBatchData":
+    def get_res_from_bath_data(self, batch: MtBatchData, msg_dict: dict) -> "MtBatchData":
         """Get unscaled data."""
+
         for k, v in msg_dict.items():
-            setattr(batch, k, v)
+            ### energy and stress is atom
+            slice_type = "sample"
+            if k == "forces":
+                slice_type = "atom"
+
+            batch.add_prop(k, v, slice_type=slice_type)
+
         batch.unscale(dct=self.note)
         return batch
 
@@ -167,6 +147,7 @@ class GNNEICalculater(Calculator):
         return result
 
     def calculate(self, atoms=None, batch_data=None):
+        assert isinstance(atoms, Atoms)
         properties = tuple(self.implemented_properties)
 
         if atoms is not None:
@@ -182,39 +163,38 @@ class GNNEICalculater(Calculator):
         else:
             batch = batch_data
 
-        predict_loader = DataLoader(batch, batch_size=32, shuffle=False) # must not shuffle
+        batch.to(self.device)
+
+        predict_loader = DataLoader(batch, batch_size=32, shuffle=False)  # must not shuffle
 
         res = simple_predict(self.model, predict_loader, return_y_true=False, device=self.device,
                              process_out=None, process_label=None, target_name=properties,
                              multi_loss=True)
 
-        res_dict = {k:v for k,v in zip(properties, res)}
+        res_dict = {k: v for k, v in zip(properties, res)}
 
-        res_batch = self.get_res_from_bath_data(batch,res_dict)
+        res_batch = self.get_res_from_bath_data(batch, res_dict)
 
-        l = 1
-
-        for k, v in properties:
+        for k in properties:
             v = getattr(res_batch, k)
 
             if isinstance(v, torch.Tensor):
                 v = v.detach().cpu().numpy()
 
+            v = v.reshape(1, -1)
+
             if hasattr(v, "shape") and sum(v.shape) <= 2:
                 v = v[0]
-            if hasattr(v, "shape") and len(v.shape) == 1:
-                v = v.reshape(1, -1)
-            if k in ["forces", "stress"]:
-                v = v.reshape(l, -1)
 
             self.results.update({k: v})
 
         if "stress" not in properties:
-            self.results["stress"] = np.zeros((3, 3))
+            self.results["stress"] = np.zeros((1, 6))
+        return self.results
 
     def calculate_batch(self, atoms, batch_data=None):
         properties = tuple(self.implemented_properties)
-        results_batch = {}
+
 
         if isinstance(atoms, Atoms):
             atoms = [atoms, ]
@@ -227,33 +207,41 @@ class GNNEICalculater(Calculator):
         from torch_geometric.loader import DataLoader
 
         if batch_data is None:
-            dataset = self.get_bath_data(atoms)
+            batch = self.get_bath_data(atoms)
         else:
-            dataset = batch_data
+            batch = batch_data
 
         l = len(atoms)
 
-        predict_loader = DataLoader(dataset, batch_size=32, shuffle=False)
+        batch.to(self.device)
 
-        res_batch = simple_predict(self.model, predict_loader, return_y_true=False, device=self.device,
-                             process_out=None, process_label=None, target_name=properties,
-                             multi_loss=True)
+        predict_loader = DataLoader(batch, batch_size=32, shuffle=False)
 
-        for k, v in properties:
-            v = getattr(res_batch, k)
+        res_batch = simple_predict(self.model, predict_loader, return_y_true=False,
+                                   device=self.device, process_out=None,
+                                   process_label=None, target_name=properties,
+                                   multi_loss=True)
 
-            if isinstance(v, torch.Tensor):
-                v = v.detach().cpu().numpy()
+        res_dict = {k: v for k, v in zip(properties, res_batch)}
 
-            if hasattr(v, "shape") and sum(v.shape) <= 2:
-                v = v[0]
-            if hasattr(v, "shape") and len(v.shape) == 1:
+        res_batch = self.get_res_from_bath_data(batch, res_dict)
+
+        res_list = []
+
+        for i in range(l):
+            results = {}
+            res_batch_i = res_batch[i]
+            for k in properties:
+                v = getattr(res_batch_i, k)
+
+                if isinstance(v, torch.Tensor):
+                    v = v.detach().cpu().numpy()
+
                 v = v.reshape(1, -1)
-            if k in ["forces", "stress"]:
-                v = v.reshape(l, -1)
 
-            results_batch.update({k: v})
+                results.update({k: v})
 
-        if "stress" not in properties:
-            results_batch["stress"] = np.zeros((l, 3, 3), dtype=np.float32)
-        return results_batch
+            if "stress" not in properties:
+                results["stress"] = np.zeros((1, 6))
+            res_list.append(results)
+        return res_list

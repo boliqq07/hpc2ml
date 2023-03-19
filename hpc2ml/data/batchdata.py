@@ -100,6 +100,25 @@ class MtBatchData(Batch):
 
         return data, slices
 
+    def add_prop(self, key, value, slice_type="atom"):
+        """Add properties could be sliced."""
+        if slice_type in ["atom", "node"]:
+            ci = self._inc_dict["x"]
+            si = self._slice_dict["x"]
+        elif slice_type == "sample":
+            ci = self._inc_dict["natoms"]
+            si = self._slice_dict["natoms"]
+        elif slice_type == "edge":
+            ci = self._inc_dict["edge_index"]
+            si = self._slice_dict['edge_index']
+        else:
+            raise NotImplementedError
+
+        setattr(self, key, value)
+        self.keys.append(key)
+        self._slice_dict.update({key:si})
+        self._inc_dict.update({key:ci})
+
     @classmethod
     def from_atoms(cls, atoms: Union[Atoms, List[Atoms]], convert=StructureToData(),
                    msg_name=None, remain_old_edge=True, **kwargs, ) -> "MtBatchData":
@@ -508,14 +527,13 @@ class MtBatchData(Batch):
                 arr, _ = self._per_static(fi, ana_mode_name, arr, inverse=False)
 
                 if "mean" in ana_mode_dict and "std" in ana_mode_dict:
-                    arr2 = (arr - ana_mode_dict["mean"]) / ana_mode_dict["std"]
-                    setattr(self, fi, arr2)
+                    arr = (arr - ana_mode_dict["mean"]) / ana_mode_dict["std"]
                 elif "max" in ana_mode_dict and "min" in ana_mode_dict:
                     sc = ana_mode_dict["max"] - ana_mode_dict["min"]
-                    arr2 = (arr - ana_mode_dict["min"]) / sc
-                    setattr(self, fi, arr2)
+                    arr = (arr - ana_mode_dict["min"]) / sc
                 else:
                     pass
+                setattr(self, fi, arr)
         return self
 
     def unscale(self, dct: Dict[str, Dict[str, Union[float, torch.Tensor]]]):
@@ -526,18 +544,18 @@ class MtBatchData(Batch):
             else:
                 arr = getattr(self, fi)
 
+                if "mean" in ana_mode_dict and "std" in ana_mode_dict:
+                    arr = (arr * ana_mode_dict["std"]) + ana_mode_dict["mean"]
+                elif "max" in ana_mode_dict and "min" in ana_mode_dict:
+                    sc = ana_mode_dict["max"] - ana_mode_dict["min"]
+                    arr = arr * sc + ana_mode_dict["min"]
+                else:
+                    pass
                 ana_mode_name = "".join([i for i in ana_mode_dict.keys() if ana_mode_dict[i] is not False ])
                 arr, _ = self._per_static(fi, ana_mode_name, arr, inverse=True)
 
-                if "mean" in ana_mode_dict and "std" in ana_mode_dict:
-                    arr2 = (arr * ana_mode_dict["std"]) + ana_mode_dict["mean"]
-                    setattr(self, fi, arr2)
-                elif "max" in ana_mode_dict and "min" in ana_mode_dict:
-                    sc = ana_mode_dict["max"] - ana_mode_dict["min"]
-                    arr2 = arr * sc + ana_mode_dict["min"]
-                    setattr(self, fi, arr2)
-                else:
-                    pass
+                setattr(self, fi, arr)
+
         return self
 
     def filter_index(self, prop: str, condition: Callable, independence: bool):
