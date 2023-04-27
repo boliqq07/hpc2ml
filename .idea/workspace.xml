@@ -1,0 +1,110 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project version="4">
+  <component name="AutoImportSettings">
+    <option name="autoReloadType" value="SELECTIVE" />
+  </component>
+  <component name="ChangeListManager">
+    <list default="true" id="a6136cd0-f161-4eeb-935c-0af69188836c" name="变更" comment="">
+      <change afterPath="$PROJECT_DIR$/.idea/deployment.xml" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/.idea/vcs.xml" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/test/data.json" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/test/organometal.db" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/test/predict/CONTCAR" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/test/predict/CONTCAR2" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/test/raw/raw_data.pt" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/test/temp_sparse_dict.pkl_pd" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/test/test_ase_db_extension/new2.db" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/test/test_data/OH_add_static/101340.out" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/test/test_data/OH_add_static/CBAuOH-vasp.run" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/test/test_data/OH_add_static/CONTCAR" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/test/test_data/OH_add_static/DOSCAR" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/test/test_data/OH_add_static/EIGENVAL" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/test/test_data/OH_add_static/ELFCAR" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/test/test_data/OH_add_static/IBZKPT" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/test/test_data/OH_add_static/INCAR" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/test/test_data/OH_add_static/KPOINTS" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/test/test_data/OH_add_static/OPTCELL" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/test/test_data/OH_add_static/OSZICAR" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/test/test_data/OH_add_static/OUTCAR" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/test/test_data/OH_add_static/PCDAT" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/test/test_data/OH_add_static/POSCAR" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/test/test_data/OH_add_static/POTCAR" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/test/test_data/OH_add_static/XDATCAR" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/test/test_data/OH_add_static/converged3" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/test/test_data/OH_add_static/host" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/test/test_data/OH_add_static/vasprun.xml" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/test/test_data/pure_opt/2396.out" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/test/test_data/pure_opt/CONTCAR" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/test/test_data/pure_opt/DOSCAR" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/test/test_data/pure_opt/EIGENVAL" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/test/test_data/pure_opt/IBZKPT" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/test/test_data/pure_opt/INCAR" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/test/test_data/pure_opt/KPOINTS" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/test/test_data/pure_opt/NOCo-vasp.run" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/test/test_data/pure_opt/OSZICAR" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/test/test_data/pure_opt/OUTCAR" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/test/test_data/pure_opt/PCDAT" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/test/test_data/pure_opt/POSCAR" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/test/test_data/pure_opt/POTCAR" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/test/test_data/pure_opt/XDATCAR" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/test/test_data/pure_opt/converged3" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/test/test_data/pure_opt/host" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/test/test_data/pure_opt/vasprun.xml" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/test/test_data/sf.py" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/test/test_nn/test_grustress.py" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/test/test_nn/test_neqilipmodel.py" afterDir="false" />
+    </list>
+    <option name="SHOW_DIALOG" value="false" />
+    <option name="HIGHLIGHT_CONFLICTS" value="true" />
+    <option name="HIGHLIGHT_NON_ACTIVE_CHANGELIST" value="false" />
+    <option name="LAST_RESOLUTION" value="IGNORE" />
+  </component>
+  <component name="Git.Settings">
+    <option name="RECENT_GIT_ROOT_PATH" value="$PROJECT_DIR$" />
+  </component>
+  <component name="ProjectId" id="2KS1RxTHtHpj4ezGqeIkwBxhiEG" />
+  <component name="ProjectViewState">
+    <option name="hideEmptyMiddlePackages" value="true" />
+    <option name="showLibraryContents" value="true" />
+  </component>
+  <component name="PropertiesComponent"><![CDATA[{
+  "keyToString": {
+    "RunOnceActivity.OpenProjectViewOnStart": "true",
+    "RunOnceActivity.ShowReadmeOnStart": "true",
+    "WebServerToolWindowFactoryState": "true",
+    "node.js.detected.package.eslint": "true",
+    "node.js.detected.package.tslint": "true",
+    "node.js.selected.package.eslint": "(autodetect)",
+    "node.js.selected.package.tslint": "(autodetect)",
+    "vue.rearranger.settings.migration": "true"
+  }
+}]]></component>
+  <component name="SpellCheckerSettings" RuntimeDictionaries="0" Folders="0" CustomDictionaries="0" DefaultDictionary="应用程序级" UseSingleDictionary="true" transferred="true" />
+  <component name="TaskManager">
+    <task active="true" id="Default" summary="默认任务">
+      <changelist id="a6136cd0-f161-4eeb-935c-0af69188836c" name="变更" comment="" />
+      <created>1673953165140</created>
+      <option name="number" value="Default" />
+      <option name="presentableId" value="Default" />
+      <updated>1673953165140</updated>
+      <workItem from="1673953166333" duration="18000" />
+      <workItem from="1679635599809" duration="824000" />
+    </task>
+    <servers />
+  </component>
+  <component name="TypeScriptGeneratedFilesManager">
+    <option name="version" value="3" />
+  </component>
+  <component name="Vcs.Log.Tabs.Properties">
+    <option name="TAB_STATES">
+      <map>
+        <entry key="MAIN">
+          <value>
+            <State />
+          </value>
+        </entry>
+      </map>
+    </option>
+  </component>
+</project>
